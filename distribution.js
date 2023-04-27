@@ -12,7 +12,9 @@ let y_start = 0;
 
 let generation_speed = 5;
 let nBalls = _total = 900;
+let nBallsCreated = 0;
 
+let balls = [];
 
 // peg board properties
 let rows = 20;
@@ -50,7 +52,7 @@ var { Engine, Render, Runner,
 
 let engine, render, runner, world;
 
-
+var mouseX, mouseY;
 
 function initialize() {
     // create engine
@@ -61,7 +63,7 @@ function initialize() {
 
     // create renderer
     render = Render.create({
-        element: document.getElementById("board"),
+        element: document.getElementById("container"),
         engine: engine,
         options: {
             width: width,
@@ -91,7 +93,7 @@ function initialize() {
         // Generate balls at a constant rate and update their position if the mouse is moved
         creationIntervalId = setInterval(function () {
             createCircle(mouseX, mouseY);
-        }, 10);
+        }, generation_speed);
     });
 
     // Stop generating balls when the mouse button is released
@@ -100,23 +102,13 @@ function initialize() {
     });
 
     // Update the mouse position if it's moved
-    var mouseX, mouseY;
+    
     render.canvas.addEventListener('mousemove', function (event) {
         mouseX = event.clientX;
         mouseY = event.clientY;
     });
 }
 
-//   // Function to create circles at the mouse location while the mouse is held down
-//   function mouseMove(event) {
-//     createCircle(event.clientX, event.clientY);
-//   }
-
-//   // Remove the mouseMove event listener when the mouse button is released
-//   function mouseUp() {
-//     render.canvas.removeEventListener('mousemove', mouseMove);
-//   }
-// }
 
 
 
@@ -128,7 +120,7 @@ function make_balls() {
     clearInterval(intervalId);
 
     intervalId = setInterval(() => {
-        let balls = [];
+
         if (total-- > 0) {
             // let x = jStat.normal.sample(x0, width * 0.1);
             // let x = width * 0.125 + Math.pow(Math.random(), 4) * width * 0.75;
@@ -147,9 +139,8 @@ function make_balls() {
                     fillStyle: d3.schemeCategory10[total % 10]
                 }
             });
-            // Matter.Events.on(circle, "sleepStart", () => {
-            //     Matter.Body.setStatic(circle, true);
-            // });
+
+            
 
             Matter.Composite.add(world, circle);
         }
@@ -157,26 +148,54 @@ function make_balls() {
 }
 
 let existingBalls = () => {
-    return world.bodies.filter((body) => body.label === "circle");
+    return world.bodies.filter((body) => (body.label === "circle" && !body.isStatic));
 };
 
 const makeStaticInterval = setInterval(() => {
     existingBalls().forEach(function (ball) {
         let ballHeight = ball.position.y;
         let ballSpeed = ball.speed;
-        let minHeight = 10; // height - (floorHeight + wallHeight);
+        // let minHeight = 10; // height - (floorHeight + wallHeight);
+        let minHeight = mouseY + 10;
         if (ballHeight > minHeight && ballSpeed < 0.1) {
-            ball.render.opacity = 0.5;
+            // ball.render.opacity = 0.5;
+            balls.push({x: ball.position.x, fill: ball.render.fillStyle});
             Body.setStatic(ball, true);
         }
     });
 }, 1500);
 
 
-function make_pegs() {
+function logBalls() {
+    let s = sample(10);
+    console.log(balls);
+    console.log(s);
+}
+
+
+function sample(sampleSize) {
+    let arr = [];
+    Composite.remove(world, world.bodies.filter((body) => (body.label === "sample")));
+    
+    for (let i = 0; i < sampleSize; i++) {
+        let index = Math.floor(Math.random() * balls.length);
+        let x = balls[index].x;
+        arr.push(x);
+
+
+        Composite.add(world, Bodies.circle(x, height - 10, ballRadius, {
+            label: "sample",
+            isStatic: true,
+            render: {fillStyle: balls[index].fill}
+        }));
+    }
+    return arr;
+}
+
+function makeGround() {
     Matter.Composite.add(
         world,
-        Bodies.rectangle(400, height, 1000, 10, {
+        Bodies.rectangle(x0, height - 20, width, 3, {
             isStatic: true,
             render: {
                 fillStyle: "#000000",
@@ -185,16 +204,6 @@ function make_pegs() {
         })
     );
 }
-
-// const canvas = d3.select("#overlay")
-// .append("canvas")
-// .attr("id", "overlay")
-// .attr("position", "absolute")
-// .attr("width", width)
-// .attr("height", height);
-
-// const ctx = canvas.node().getContext('2d');
-// canvas.on("mousedown", reset);
 
 function drawNormalDistribution() {
 
@@ -227,22 +236,24 @@ function reset() {
     console.log('reset clicked');
 
     initialize();
-    make_pegs();
+    makeGround();
     make_balls();
-    // createFunnel();
-    // drawNormalDistribution();
 }
 
 
 //
 
 initialize();
-make_pegs();
-// make_balls();
+makeGround();
+
+
+
+
 
 
 // Create a new circle with random properties
 function createCircle(x, y) {
+    nBallsCreated++;
     var radius = ballRadius;
     var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
         label: "circle",
@@ -252,13 +263,11 @@ function createCircle(x, y) {
         frictionStatic,
         slop,
         mass,
-        density
+        density,
+        render: {fillStyle: d3.schemeCategory10[nBallsCreated % 10]}
     });
     Matter.World.add(world, circle);
 }
-
-
-
 
 
 
