@@ -170,8 +170,18 @@ function logBalls() {
     let s = sample(10);
     console.log(balls);
     console.log(s);
+
+    d3.select("#mean").html(mean(s));
 }
 
+function mean(arr) {
+    let total = 0;
+    let n = arr.length;
+    for (let i = 0; i < n; i++) {
+        total += arr[i];
+    }
+    return total/n;
+}
 
 function sample(sampleSize) {
     let arr = [];
