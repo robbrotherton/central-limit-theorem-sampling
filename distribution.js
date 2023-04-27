@@ -70,7 +70,7 @@ function initialize() {
             height: height,
             background: "#ffffff",
             wireframes: false,
-            showSleeping: false
+            showSleeping: true
         }
     });
     Render.run(render);
@@ -159,7 +159,7 @@ const makeStaticInterval = setInterval(() => {
         let minHeight = mouseY + 10;
         if (ballHeight > minHeight && ballSpeed < 0.1) {
             // ball.render.opacity = 0.5;
-            balls.push({x: ball.position.x, fill: ball.render.fillStyle});
+            balls.push({position: ball.position, fill: ball.render.fillStyle});
             Body.setStatic(ball, true);
         }
     });
@@ -189,24 +189,51 @@ function sample(sampleSize) {
     
     for (let i = 0; i < sampleSize; i++) {
         let index = Math.floor(Math.random() * balls.length);
-        let x = balls[index].x;
-        arr.push(x);
+        let pos = balls[index].position;
+        arr.push(pos.x);
 
 
-        Composite.add(world, Bodies.circle(x, height - 10, ballRadius, {
+        Composite.add(world, Bodies.circle(pos.x, pos.y, ballRadius, {
             label: "sample",
-            isStatic: true,
+            restitution: 0.4, friction, frictionStatic,
+            density, mass, slop: 0,
+            collisionFilter: {group: -1, category: 2, mask: 4},
+            //isStatic: true,
+            // isSensor: true,
             render: {fillStyle: balls[index].fill}
-        }));
-    }
+        }));    
+    };
+
+    let m = Math.round(mean(arr)/10)*10;
+    Composite.add(world, Bodies.rectangle(m, height * 0.5, ballRadius * 2, ballRadius * 2, {
+        label: "mean",
+        restitution: 0.2, friction, frictionStatic,
+        density: 1, mass,
+        collisionFilter: {group: 3, category: 2, mask: 4},
+        render: {fillStyle: "red", strokeStyle: "white", lineWidth: 1}
+    }));
+
     return arr;
 }
 
 function makeGround() {
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, height - 20, width, 3, {
+        Bodies.rectangle(x0, height * 0.75, width, 3, {
             isStatic: true,
+            collisionFilter: {group: 1, category: 1, mask: 0},
+            render: {
+                fillStyle: "#000000",
+                visible: true
+            }
+        })
+    );
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, height + 2, width, 10, {
+            friction, frictionStatic,
+            isStatic: true,
+            collisionFilter: {group: 2, category: 4, mask: 2},
             render: {
                 fillStyle: "#000000",
                 visible: true
@@ -274,6 +301,7 @@ function createCircle(x, y) {
         slop,
         mass,
         density,
+        collisionFilter: {group: 1},
         render: {fillStyle: d3.schemeCategory10[nBallsCreated % 10]}
     });
     Matter.World.add(world, circle);
