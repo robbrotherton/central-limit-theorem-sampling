@@ -9,17 +9,28 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jstat/1.9.6/jstat.min.js"></script>
 </head>
 <body>
-    <div id="container" style="position: relative; z-index: 0;">
+    <div id="options" style="margin: auto; width: fit-content;">
+    Distribution:
+    <select name="dist" id="dist">
+        <option value="normal">Normal</option>
+        <option value="positive">Positive skew</option>
+        <option value="negative">Negative skew</option>
+        <option value="uniform">Uniform</option>
+        <option value="custom">Custom</option>
+    </select>
+    Sample size:
+    <input id="sampleSize" style="width: 2em;" value="10">
+</div>
+    <div id="container" style="position: relative; z-index: 0; margin: 0 auto; width: 700px;">
     </div>
-    <div id="controls">
+    <div id="controls" style="margin: auto; width: fit-content;">
         <button onclick="logBalls()">Take a sample</button>
         <button onclick="takeSamples()">Start</button>
         <button onclick="stopSamples()">Stop</button>
         <button onclick="reset()">Reset</button>
-    </div>
-    <div id="sampleDescriptives">
+    <!-- <div id="sampleDescriptives">
         M = <span id="mean"></span>; SD = <span id="sd"></span>
-    </div>
+    </div> -->
 </body>
     <script src="distribution.js"></script>
 </body>
