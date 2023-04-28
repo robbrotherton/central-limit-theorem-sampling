@@ -3,15 +3,18 @@
 
 
 let width = 700;
-let height = 300;
+let height = 600;
 let x0 = x_start = width / 2;
+
+let populationHeight = height * 0.4;
+let sampleHeight = 100;
 
 // ball properties
 const ballRadius = size = 4;
 let y_start = 0;
 
 let generation_speed = 5;
-let nBalls = _total = 900;
+let nBalls = _total = 100;
 let nBallsCreated = 0;
 
 let balls = [];
@@ -77,6 +80,8 @@ function initialize() {
 
     // engine.gravity.y = 1;
     // engine.timing.timeScale = 1;
+    engine.positionIterations = 4;
+    engine.velocityIterations = 100;
 
     // create runner
     runner = Runner.create();
@@ -102,7 +107,7 @@ function initialize() {
     });
 
     // Update the mouse position if it's moved
-    
+
     render.canvas.addEventListener('mousemove', function (event) {
         mouseX = event.clientX;
         mouseY = event.clientY;
@@ -134,13 +139,14 @@ function make_balls() {
                 slop: 0.01,
                 density: Infinity,
                 frictionAir,
-                sleepThreshold: Infinity,
+                // sleepThreshold: Infinity,
+                collisionFilter: { group: 1 },
                 render: {
                     fillStyle: d3.schemeCategory10[total % 10]
                 }
             });
 
-            
+
 
             Matter.Composite.add(world, circle);
         }
@@ -155,15 +161,33 @@ const makeStaticInterval = setInterval(() => {
     existingBalls().forEach(function (ball) {
         let ballHeight = ball.position.y;
         let ballSpeed = ball.speed;
-        // let minHeight = 10; // height - (floorHeight + wallHeight);
-        let minHeight = mouseY + 10;
+        let minHeight = 10; // height - (floorHeight + wallHeight);
+        //let minHeight = mouseY + 10;
         if (ballHeight > minHeight && ballSpeed < 0.1) {
             // ball.render.opacity = 0.5;
-            balls.push({position: ball.position, fill: ball.render.fillStyle});
+            balls.push({ position: ball.position, fill: ball.render.fillStyle });
             Body.setStatic(ball, true);
         }
     });
 }, 1500);
+
+// let existingMeans = () => {
+//     return world.bodies.filter((body) => (body.label === "mean" && !body.isStatic));
+// };
+
+// const makeStaticMeanInterval = setInterval(() => {
+//     existingMeans().forEach(function (mean) {
+//         let meanHeight = mean.position.y;
+//         let meanSpeed = mean.speed;
+//         // let minHeight = 10; // height - (floorHeight + wallHeight);
+//         let minHeight = populationHeight + sampleHeight;
+//         if (meanHeight > minHeight && meanSpeed < 0.1) {
+//             mean.render.fillStyle = "black";
+//             //balls.push({ position: ball.position, fill: ball.render.fillStyle });
+//             Body.setStatic(mean, true);
+//         }
+//     });
+// }, 100);
 
 
 function logBalls() {
@@ -180,13 +204,13 @@ function mean(arr) {
     for (let i = 0; i < n; i++) {
         total += arr[i];
     }
-    return total/n;
+    return total / n;
 }
 
 function sample(sampleSize) {
     let arr = [];
     Composite.remove(world, world.bodies.filter((body) => (body.label === "sample")));
-    
+
     for (let i = 0; i < sampleSize; i++) {
         let index = Math.floor(Math.random() * balls.length);
         let pos = balls[index].position;
@@ -196,50 +220,89 @@ function sample(sampleSize) {
         Composite.add(world, Bodies.circle(pos.x, pos.y, ballRadius, {
             label: "sample",
             restitution: 0.4, friction, frictionStatic,
-            density, mass, slop: 0,
-            collisionFilter: {group: -1, category: 2, mask: 4},
-            //isStatic: true,
-            // isSensor: true,
-            render: {fillStyle: balls[index].fill}
-        }));    
+            density: 1, mass: 1, slop: 0.05,
+            sleepThreshold: Infinity,
+            collisionFilter: { group: -1, category: 2, mask: 4 },
+            render: { fillStyle: balls[index].fill }
+        }));
     };
 
-    let m = Math.round(mean(arr)/10)*10;
-    Composite.add(world, Bodies.rectangle(m, height * 0.5, ballRadius * 2, ballRadius * 2, {
+    let m = Math.round(mean(arr) / 10) * 10;
+
+    const meanSquare = Bodies.rectangle(m, height * 0.5, ballRadius * 2, ballRadius * 2, {
         label: "mean",
-        restitution: 0.2, friction, frictionStatic,
-        density: 1, mass,
-        collisionFilter: {group: 3, category: 2, mask: 4},
-        render: {fillStyle: "red", strokeStyle: "white", lineWidth: 1}
-    }));
+        restitution: 0, 
+        friction, 
+        frictionStatic, 
+        slop: 0,
+        collisionFilter: { group: 4, category: 6, mask: 8 },
+        render: { fillStyle: "red", strokeStyle: "white", lineWidth: 1 }
+    });
+    Composite.add(world, meanSquare);
 
     return arr;
 }
 
 function makeGround() {
+    // floor of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, height * 0.75, width, 3, {
+        Bodies.rectangle(x0, populationHeight, width, 10, {
             isStatic: true,
-            collisionFilter: {group: 1, category: 1, mask: 0},
+            density: Infinity,
+            collisionFilter: { group: 1, category: 1, mask: 0 },
             render: {
                 fillStyle: "#000000",
                 visible: true
             }
         })
     );
+    // floor of sample
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, height + 2, width, 10, {
+        Bodies.rectangle(x0, populationHeight + sampleHeight, width, 10, {
+            friction, frictionStatic,
+            density: Infinity, mass: Infinity,
+            isStatic: true,
+            collisionFilter: { group: 2, category: 4, mask: 2 },
+            render: {
+                fillStyle: "#000000",
+                visible: true
+            }
+        })
+    );
+    // floor of sampling distribution
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, height + 2, width, 20, {
             friction, frictionStatic,
             isStatic: true,
-            collisionFilter: {group: 2, category: 4, mask: 2},
+            collisionFilter: { group: 3, category: 8, mask: 6 },
             render: {
                 fillStyle: "#000000",
                 visible: true
             }
         })
     );
+}
+
+// Create a new circle with random properties
+function createCircle(x, y) {
+    nBallsCreated++;
+    var radius = ballRadius;
+    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
+        label: "circle",
+        restitution,
+        friction,
+        frictionAir,
+        frictionStatic,
+        slop,
+        mass,
+        density,
+        collisionFilter: { group: 1 },
+        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
+    });
+    Matter.World.add(world, circle);
 }
 
 function drawNormalDistribution() {
@@ -282,30 +345,13 @@ function reset() {
 
 initialize();
 makeGround();
+make_balls();
 
 
 
 
 
 
-// Create a new circle with random properties
-function createCircle(x, y) {
-    nBallsCreated++;
-    var radius = ballRadius;
-    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
-        label: "circle",
-        restitution,
-        friction,
-        frictionAir,
-        frictionStatic,
-        slop,
-        mass,
-        density,
-        collisionFilter: {group: 1},
-        render: {fillStyle: d3.schemeCategory10[nBallsCreated % 10]}
-    });
-    Matter.World.add(world, circle);
-}
 
 
 
