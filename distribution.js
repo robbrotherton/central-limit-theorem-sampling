@@ -116,17 +116,18 @@ function make_balls() {
             // let x = jStat.normal.sample(x0, width * 0.1);
 
             // uniform
-            let x = (width * 0.05) + width * 0.9 * Math.random();
+            //let x = (width * 0.05) + width * 0.9 * Math.random();
 
             // positive skew
             // let x = width * 0.125 + Math.pow(Math.random(), 4) * width * 0.75;
-            // let x = randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
+            //let x = randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
 
             // negative skew
             //let x = randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
 
             // normal
-            // let x = randomSkewNormal(Math.random, x0, width * 0.12, 0);
+            let x = randomSkewNormal(Math.random, x0, width * 0.12, 0);
+            
             const circle = Bodies.circle(x, -20, size, {
                 label: "circle",
                 friction: 1,
@@ -154,6 +155,29 @@ let existingBalls = () => {
     return world.bodies.filter((body) => (body.label === "circle" && !body.isStatic));
 };
 
+let populationInterval;
+let populationMean = 0;
+
+const updatePopulationInterval = setInterval(() => {
+    let allBalls = world.bodies.filter((body) => (body.label === "circle"));
+    
+    // compute the population mean
+    let total = 0;
+    for (let i = 0; i < allBalls.length; i++) {
+        total += allBalls[i].position.x;
+    }
+    populationMean = total / allBalls.length;
+    
+    let ss = 0;
+    for (let i = 0; i < allBalls.length; i++) {
+        ss += Math.pow(allBalls[i].position.x - populationMean, 2);
+    }
+    populationSd = Math.sqrt(ss / allBalls.length);
+
+    drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
+
+}, 1000);
+
 const makeStaticInterval = setInterval(() => {
     existingBalls().forEach(function (ball) {
         let ballHeight = ball.position.y;
@@ -164,7 +188,11 @@ const makeStaticInterval = setInterval(() => {
             // ball.render.opacity = 0.5;
             balls.push({ position: ball.position, fill: ball.render.fillStyle });
             Body.setStatic(ball, true);
+
+            let newPopulationSum = populationMean * (balls.length - 1) + ball.position.x;
+            populationMean = newPopulationSum / balls.length;
         }
+        
     });
 }, 1500);
 
@@ -191,8 +219,8 @@ const makeStaticMeanInterval = setInterval(() => {
 
 function logBalls() {
     let s = sample(sampleSize);
-    console.log(balls);
-    console.log(s);
+    // console.log(balls);
+    // console.log(s);
 
     d3.select("#mean").html(currentMean);
 }
@@ -269,7 +297,7 @@ function makeGround() {
     // floor of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, populationHeight, width, 4, {
+        Bodies.rectangle(x0, populationHeight + 4, width, 10, {
             isStatic: true,
             density: Infinity,
             collisionFilter: { group: 1, category: 1, mask: 0 },
@@ -286,7 +314,7 @@ function makeGround() {
             Bodies.rectangle(x0, populationHeight + sampleHeight * 0.5, width, sampleHeight - 10, {
                 isStatic: true,
                 isSensor: true,
-                render: {fillStyle: "thistle", opacity: 0.3},
+                render: {fillStyle: "#ededed"},
                 chamfer: {radius: [10, 10, 10, 10]}
             })
         );
@@ -319,7 +347,7 @@ function makeGround() {
     // floor of sampling distribution
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, height + 2, width, 20, {
+        Bodies.rectangle(x0, height + 10, width, 20, {
             friction, frictionStatic,
             isStatic: true,
             collisionFilter: { group: 3, category: 8, mask: 6 },
@@ -352,8 +380,8 @@ function createCircle(x, y) {
 }
 
 
-// drawing the normal distribution overlay
 
+// label the panels
 d3.select("#container")
 .append("span").style("position", "absolute")
 .attr("id", "samplingDistributionOverlay")
@@ -373,43 +401,45 @@ d3.select("#container")
 .style("z-index", 12)
 .text("Distribution of sample means")
 
-
-const canvas = d3.select("#container")
-.append("canvas")
+// drawing the normal distribution overlay
+const curve = d3.select("#container")
+.append("svg")
 .style("position", "absolute")
 // .attr("margin-top", )
 .style("transform", `translateY(${height - samplingDistributionHeight}px)`)
 // .append("div")
 .style("z-index", 11)
 .attr("id", "samplingDistCanvas")
-.style("background", "none")
 // .style("left", 0)
 .attr("height", samplingDistributionHeight)
 .attr("width", width)
 
-const ctx = canvas.node().getContext("2d");
-ctx.font = "30px Arial";
 
-function drawNormalDistribution() {
+const line = d3.line()
+    .x(d => d.value)
+    .y(d => samplingDistributionHeight - d.density * 20000 - 1);
 
-    ctx.strokeStyle = 'red';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    //ctx.moveTo(0, height - 5);
+function drawNormalDistribution(mean, sd) {
 
-    // let yMultiplier = (height - (y_peg_start + rows * yGap));
-    let yMultiplier = 10000;
+    // remove the old path
+    curve.selectAll("path").remove();
+
+    let yMultiplier = 20000;
     var values = jStat(0, width, 210)[0];
 
-    let populationMean = x0;
-    let standardError = 50;
-
+    let data = [];
     for (var i in values) {
         let value = values[i];
-        let density = jStat.normal.pdf(value, populationMean, standardError);
-        ctx.lineTo(value, samplingDistributionHeight-(density * 2.2 * yMultiplier) - 5);
-        ctx.stroke();
+        let density = jStat.normal.pdf(value, mean, sd);
+        data.push({value: value, density: density});
     }
+
+    // draw the new path
+    curve.append("path")
+        .attr("d", line(data))
+        .attr("stroke", "red")
+        .attr("stroke-width", 2)
+        .attr("fill", "none");
 }
 
 function reset() {
@@ -424,11 +454,11 @@ function reset() {
     render.canvas = null;
     render.context = null;
     render.textures = {};
-    console.log('reset clicked');
+    // console.log('reset clicked');
 
     initialize();
     makeGround();
-    // make_balls();
+    make_balls();
 }
 
 
@@ -437,7 +467,7 @@ function reset() {
 initialize();
 makeGround();
 drawNormalDistribution();
-// make_balls();
+make_balls();
 
 
 
@@ -479,4 +509,16 @@ function mean(arr) {
         total += arr[i];
     }
     return total / n;
+}
+
+function sd(arr) {
+    let mean = mean(arr);
+
+    let ss = 0;
+
+    for (let i = 0; i < arr.length; i++) {
+        ss += Math.pow(arr[i] - mean, 2);
+    }
+
+    return Math.sqrt(ss / arr.length);
 }
