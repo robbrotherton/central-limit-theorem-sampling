@@ -8,6 +8,7 @@ let x0 = x_start = width / 2;
 
 let populationHeight = height * 0.4;
 let sampleHeight = 50;
+let samplingDistributionHeight = height - (populationHeight + sampleHeight);
 
 // ball properties
 const ballRadius = size = 5;
@@ -15,8 +16,11 @@ let generationSpeed = 1;
 let nBalls = 600;
 let nBallsCreated = 0;
 
-let balls = [];
+let sampleSize = 10;
 
+let balls = [];
+let currentMean;
+let means = [];
 
 // physics properties
 let restitution = 0; // bounciness
@@ -186,21 +190,14 @@ const makeStaticMeanInterval = setInterval(() => {
 
 
 function logBalls() {
-    let s = sample(5);
+    let s = sample(sampleSize);
     console.log(balls);
     console.log(s);
 
-    d3.select("#mean").html(mean(s));
+    d3.select("#mean").html(currentMean);
 }
 
-function mean(arr) {
-    let total = 0;
-    let n = arr.length;
-    for (let i = 0; i < n; i++) {
-        total += arr[i];
-    }
-    return total / n;
-}
+
 
 function sample(sampleSize) {
     // engine.velocityIterations = 100;
@@ -223,9 +220,10 @@ function sample(sampleSize) {
         }));
     };
 
-    let m = Math.round(mean(arr) / (ballRadius * 2)) * (ballRadius * 2);
+    currentMean = mean(arr);
+    let binnedMean = Math.round(currentMean / (ballRadius * 2)) * (ballRadius * 2);
 
-    const meanSquare = Bodies.rectangle(m, populationHeight + sampleHeight, ballRadius * 2, ballRadius * 2, {
+    const meanSquare = Bodies.rectangle(binnedMean, populationHeight + sampleHeight, ballRadius * 2, ballRadius * 2, {
         label: "mean",
         restitution: 0, 
         friction, 
@@ -235,7 +233,7 @@ function sample(sampleSize) {
         mass: 0.000000000000001,
         slop: 0,
         collisionFilter: { group: 4, category: 6, mask: 8 },
-        render: { fillStyle: "red", strokeStyle: "white", lineWidth: 1 }
+        render: { fillStyle: "black", strokeStyle: "white", lineWidth: 1 }
     });
     Composite.add(world, meanSquare);
 
@@ -256,19 +254,42 @@ function stopSamples() {
 }
 
 function makeGround() {
+
+    // background of population
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, populationHeight * 0.5, width, populationHeight, {
+            isStatic: true,
+            isSensor: true,
+            render: {fillStyle: "dodgerblue", opacity: 0.3},
+            chamfer: {radius: [10, 10, 10, 10]}
+        })
+    );
+
     // floor of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, populationHeight, width, 10, {
+        Bodies.rectangle(x0, populationHeight, width, 4, {
             isStatic: true,
             density: Infinity,
             collisionFilter: { group: 1, category: 1, mask: 0 },
             render: {
                 fillStyle: "#000000",
-                visible: true
+                visible: false
             }
         })
     );
+
+    // background of sample
+        Matter.Composite.add(
+            world,
+            Bodies.rectangle(x0, populationHeight + sampleHeight * 0.5, width, sampleHeight - 10, {
+                isStatic: true,
+                isSensor: true,
+                render: {fillStyle: "thistle", opacity: 0.3},
+                chamfer: {radius: [10, 10, 10, 10]}
+            })
+        );
     // floor of sample
     Matter.Composite.add(
         world,
@@ -279,10 +300,22 @@ function makeGround() {
             collisionFilter: { group: 2, category: 4, mask: 2 },
             render: {
                 fillStyle: "#000000",
-                visible: true
+                visible: false
             }
         })
     );
+
+    // background of sampling distribution
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, height - samplingDistributionHeight * 0.5, width, samplingDistributionHeight, {
+            isStatic: true,
+            isSensor: true,
+            render: {fillStyle: "plum", opacity: 0.3},
+            chamfer: {radius: [10, 10, 10, 10]}
+        })
+    );
+
     // floor of sampling distribution
     Matter.Composite.add(
         world,
@@ -292,11 +325,12 @@ function makeGround() {
             collisionFilter: { group: 3, category: 8, mask: 6 },
             render: {
                 fillStyle: "#000000",
-                visible: true
+                visible: false
             }
         })
     );
 }
+
 
 // Create a new circle with random properties
 function createCircle(x, y) {
@@ -317,21 +351,63 @@ function createCircle(x, y) {
     Matter.World.add(world, circle);
 }
 
+
+// drawing the normal distribution overlay
+
+d3.select("#container")
+.append("span").style("position", "absolute")
+.attr("id", "samplingDistributionOverlay")
+// .style("top", `${populationHeight + sampleHeight}px`)
+.style("z-index", 12)
+.text("Population")
+d3.select("#container")
+.append("span").style("position", "absolute")
+.attr("id", "samplingDistributionOverlay")
+.style("top", `${populationHeight + 5}px`)
+.style("z-index", 12)
+.text("Sample")
+d3.select("#container")
+.append("span").style("position", "absolute")
+.attr("id", "samplingDistributionOverlay")
+.style("top", `${populationHeight + sampleHeight}px`)
+.style("z-index", 12)
+.text("Distribution of sample means")
+
+
+const canvas = d3.select("#container")
+.append("canvas")
+.style("position", "absolute")
+// .attr("margin-top", )
+.style("transform", `translateY(${height - samplingDistributionHeight}px)`)
+// .append("div")
+.style("z-index", 11)
+.attr("id", "samplingDistCanvas")
+.style("background", "none")
+// .style("left", 0)
+.attr("height", samplingDistributionHeight)
+.attr("width", width)
+
+const ctx = canvas.node().getContext("2d");
+ctx.font = "30px Arial";
+
 function drawNormalDistribution() {
 
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, height - 5);
+    //ctx.moveTo(0, height - 5);
 
-    let yMultiplier = (height - (y_peg_start + rows * yGap));
-    var values = jStat(-4, 4, 210)[0]
+    // let yMultiplier = (height - (y_peg_start + rows * yGap));
+    let yMultiplier = 10000;
+    var values = jStat(0, width, 210)[0];
 
+    let populationMean = x0;
+    let standardError = 50;
 
     for (var i in values) {
         let value = values[i];
-        let density = jStat.normal.pdf(value, 0, 0.9);
-        ctx.lineTo((value + 4) * (width / 8), height - (density * 2.2 * yMultiplier) - 5);
+        let density = jStat.normal.pdf(value, populationMean, standardError);
+        ctx.lineTo(value, samplingDistributionHeight-(density * 2.2 * yMultiplier) - 5);
         ctx.stroke();
     }
 }
@@ -352,7 +428,7 @@ function reset() {
 
     initialize();
     makeGround();
-    make_balls();
+    // make_balls();
 }
 
 
@@ -360,7 +436,8 @@ function reset() {
 
 initialize();
 makeGround();
-make_balls();
+drawNormalDistribution();
+// make_balls();
 
 
 
@@ -393,3 +470,13 @@ const randomSkewNormal = (rng, ξ = 0, ω = 1, α = 0) => {
     const z = u0 >= 0 ? u1 : -u1;
     return ξ + ω * z;
 };
+
+// other low-level helper functions
+function mean(arr) {
+    let total = 0;
+    let n = arr.length;
+    for (let i = 0; i < n; i++) {
+        total += arr[i];
+    }
+    return total / n;
+}
