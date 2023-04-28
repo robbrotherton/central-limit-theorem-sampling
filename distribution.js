@@ -7,33 +7,16 @@ let height = 600;
 let x0 = x_start = width / 2;
 
 let populationHeight = height * 0.4;
-let sampleHeight = 100;
+let sampleHeight = 50;
 
 // ball properties
-const ballRadius = size = 4;
-let y_start = 0;
-
-let generation_speed = 5;
-let nBalls = _total = 100;
+const ballRadius = size = 5;
+let generationSpeed = 1;
+let nBalls = 600;
 let nBallsCreated = 0;
 
 let balls = [];
 
-// peg board properties
-let rows = 20;
-let y_peg_start = 20;
-let pegGap = 6.5 * ballRadius;
-let pegRadius = 0.5 * ballRadius;
-let xGap = pegGap;
-let yGap = 0.6 * xGap;
-let pegAngle = 0; // Math.PI / 4;
-let gap_between_pegs_and_buckets = 0;
-
-// funnel properties
-const funnelTostartGap = yGap;
-const funnelWallLength = 600;
-const funnelAngle = Math.PI / 3;
-const funnelOpening = 5 * ballRadius;
 
 // physics properties
 let restitution = 0; // bounciness
@@ -73,7 +56,7 @@ function initialize() {
             height: height,
             background: "#ffffff",
             wireframes: false,
-            showSleeping: true
+            showSleeping: false
         }
     });
     Render.run(render);
@@ -98,7 +81,7 @@ function initialize() {
         // Generate balls at a constant rate and update their position if the mouse is moved
         creationIntervalId = setInterval(function () {
             createCircle(mouseX, mouseY);
-        }, generation_speed);
+        }, generationSpeed);
     });
 
     // Stop generating balls when the mouse button is released
@@ -107,7 +90,6 @@ function initialize() {
     });
 
     // Update the mouse position if it's moved
-
     render.canvas.addEventListener('mousemove', function (event) {
         mouseX = event.clientX;
         mouseY = event.clientY;
@@ -121,15 +103,26 @@ function initialize() {
 
 function make_balls() {
 
-    let total = _total;
+    let total = nBalls;
     clearInterval(intervalId);
 
     intervalId = setInterval(() => {
 
         if (total-- > 0) {
             // let x = jStat.normal.sample(x0, width * 0.1);
+
+            // uniform
+            let x = (width * 0.05) + width * 0.9 * Math.random();
+
+            // positive skew
             // let x = width * 0.125 + Math.pow(Math.random(), 4) * width * 0.75;
-            let x = randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
+            // let x = randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
+
+            // negative skew
+            //let x = randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
+
+            // normal
+            // let x = randomSkewNormal(Math.random, x0, width * 0.12, 0);
             const circle = Bodies.circle(x, -20, size, {
                 label: "circle",
                 friction: 1,
@@ -150,7 +143,7 @@ function make_balls() {
 
             Matter.Composite.add(world, circle);
         }
-    }, 5);
+    }, generationSpeed);
 }
 
 let existingBalls = () => {
@@ -180,11 +173,11 @@ const makeStaticMeanInterval = setInterval(() => {
         let meanHeight = mean.position.y;
         let meanSpeed = mean.speed;
         // let minHeight = 10; // height - (floorHeight + wallHeight);
-        let minHeight = populationHeight + sampleHeight;
+        let minHeight = populationHeight + sampleHeight + 50;
         if (meanHeight > minHeight && meanSpeed < 0.5) {
-            mean.render.fillStyle = "black";
+            // mean.render.fillStyle = "black";
             mean.isStatic = true;
-            mean.density = Infinity;
+            // mean.density = Infinity;
             //balls.push({ position: ball.position, fill: ball.render.fillStyle });
             //Body.setStatic(mean, true);
         }
@@ -193,7 +186,7 @@ const makeStaticMeanInterval = setInterval(() => {
 
 
 function logBalls() {
-    let s = sample(10);
+    let s = sample(5);
     console.log(balls);
     console.log(s);
 
@@ -210,7 +203,7 @@ function mean(arr) {
 }
 
 function sample(sampleSize) {
-    engine.velocityIterations = 100;
+    // engine.velocityIterations = 100;
     let arr = [];
     Composite.remove(world, world.bodies.filter((body) => (body.label === "sample")));
 
@@ -230,16 +223,16 @@ function sample(sampleSize) {
         }));
     };
 
-    let m = Math.round(mean(arr) / 10) * 10;
+    let m = Math.round(mean(arr) / (ballRadius * 2)) * (ballRadius * 2);
 
-    const meanSquare = Bodies.rectangle(m, height * 0.5, ballRadius * 2, ballRadius * 2, {
+    const meanSquare = Bodies.rectangle(m, populationHeight + sampleHeight, ballRadius * 2, ballRadius * 2, {
         label: "mean",
         restitution: 0, 
         friction, 
         frictionStatic, 
-        frictionAir: 0.06,
-        density: 1000000,
-        mass: 0.000001,
+        frictionAir: 0.03,
+        density: Infinity,
+        mass: 0.000000000000001,
         slop: 0,
         collisionFilter: { group: 4, category: 6, mask: 8 },
         render: { fillStyle: "red", strokeStyle: "white", lineWidth: 1 }
@@ -247,6 +240,19 @@ function sample(sampleSize) {
     Composite.add(world, meanSquare);
 
     return arr;
+}
+
+let sampleInterval;
+
+function takeSamples() {
+    sampleInterval = setInterval(() => {
+        logBalls();
+    }, 100);
+}
+
+
+function stopSamples() {
+    clearInterval(sampleInterval);
 }
 
 function makeGround() {
@@ -331,6 +337,9 @@ function drawNormalDistribution() {
 }
 
 function reset() {
+
+    balls = [];
+
     Composite.clear(world);
     Engine.clear(engine);
     Render.stop(render);
