@@ -80,8 +80,8 @@ function initialize() {
 
     // engine.gravity.y = 1;
     // engine.timing.timeScale = 1;
-    engine.positionIterations = 4;
-    engine.velocityIterations = 100;
+    // engine.positionIterations = 4;
+    // engine.velocityIterations = 1000;
 
     // create runner
     runner = Runner.create();
@@ -171,23 +171,25 @@ const makeStaticInterval = setInterval(() => {
     });
 }, 1500);
 
-// let existingMeans = () => {
-//     return world.bodies.filter((body) => (body.label === "mean" && !body.isStatic));
-// };
+let existingMeans = () => {
+    return world.bodies.filter((body) => (body.label === "mean"));
+};
 
-// const makeStaticMeanInterval = setInterval(() => {
-//     existingMeans().forEach(function (mean) {
-//         let meanHeight = mean.position.y;
-//         let meanSpeed = mean.speed;
-//         // let minHeight = 10; // height - (floorHeight + wallHeight);
-//         let minHeight = populationHeight + sampleHeight;
-//         if (meanHeight > minHeight && meanSpeed < 0.1) {
-//             mean.render.fillStyle = "black";
-//             //balls.push({ position: ball.position, fill: ball.render.fillStyle });
-//             Body.setStatic(mean, true);
-//         }
-//     });
-// }, 100);
+const makeStaticMeanInterval = setInterval(() => {
+    existingMeans().forEach(function (mean) {
+        let meanHeight = mean.position.y;
+        let meanSpeed = mean.speed;
+        // let minHeight = 10; // height - (floorHeight + wallHeight);
+        let minHeight = populationHeight + sampleHeight;
+        if (meanHeight > minHeight && meanSpeed < 0.5) {
+            mean.render.fillStyle = "black";
+            mean.isStatic = true;
+            mean.density = Infinity;
+            //balls.push({ position: ball.position, fill: ball.render.fillStyle });
+            //Body.setStatic(mean, true);
+        }
+    });
+}, 10);
 
 
 function logBalls() {
@@ -208,6 +210,7 @@ function mean(arr) {
 }
 
 function sample(sampleSize) {
+    engine.velocityIterations = 100;
     let arr = [];
     Composite.remove(world, world.bodies.filter((body) => (body.label === "sample")));
 
@@ -234,6 +237,9 @@ function sample(sampleSize) {
         restitution: 0, 
         friction, 
         frictionStatic, 
+        frictionAir: 0.06,
+        density: 1000000,
+        mass: 0.000001,
         slop: 0,
         collisionFilter: { group: 4, category: 6, mask: 8 },
         render: { fillStyle: "red", strokeStyle: "white", lineWidth: 1 }
