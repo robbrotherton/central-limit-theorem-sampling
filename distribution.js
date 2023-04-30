@@ -29,7 +29,9 @@ console.log(distributionFunction)
 
 let populationMean = x0;
 let populationSd = width * 0.12;
-let updatePopulationInterval; 
+let updatePopulationInterval;
+
+var canvasPosition;
 
 let y = d3.scaleLinear()
     .domain([0, jStat.normal.pdf(x0, x0, 80 / Math.sqrt(sampleSize))])
@@ -87,8 +89,8 @@ function initialize() {
 
     // engine.gravity.y = 1;
     // engine.timing.timeScale = 1;
-    // engine.positionIterations = 10;
-    engine.velocityIterations = 10;
+    engine.positionIterations = 10;
+    engine.velocityIterations = 50;
 
     // create runner
     runner = Runner.create();
@@ -96,11 +98,13 @@ function initialize() {
     // render.canvas.addEventListener("mousedown", reset);
     render.canvas.position = "absolute";
 
+    canvasPosition = getPosition(render.canvas);
+
     var creationIntervalId;
     // Add an event listener to the canvas to detect mouse clicks
     render.canvas.addEventListener('mousedown', function (event) {
         // Generate the first circle at the mouse location
-        createCircle(event.clientX, event.clientY);
+        createCircle(event.clientX - canvasPosition.x, event.clientY - canvasPosition.y);
 
         // Generate balls at a constant rate and update their position if the mouse is moved
         creationIntervalId = setInterval(function () {
@@ -115,9 +119,27 @@ function initialize() {
 
     // Update the mouse position if it's moved
     render.canvas.addEventListener('mousemove', function (event) {
-        mouseX = event.clientX;
-        mouseY = event.clientY;
+        mouseX = event.clientX - canvasPosition.x;
+        mouseY = event.clientY - canvasPosition.y;
     });
+}
+
+// Update the canvas position when the window is resized
+window.addEventListener('resize', function () {
+    canvasPosition = getPosition(render.canvas);
+});
+
+function getPosition(element) {
+    var xPosition = 0;
+    var yPosition = 0;
+
+    while (element) {
+        xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
+        yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
+        element = element.offsetParent;
+    }
+
+    return { x: xPosition, y: yPosition };
 }
 
 // Make the world
@@ -564,9 +586,10 @@ function drawProportions(proportions) {
             .attr("stroke", "black")
             .attr("stroke-width", 0.5)
             .attr("x", key - ballRadius * 0.5)
-            .attr("y", y(value * 0.2))
+            .attr("y", 0)
             .attr("width", 5)
-            .attr("height", samplingDistributionHeight);
+            .attr("height", samplingDistributionHeight)
+            .transition().duration(value * 20000).attr("y", y(value * 0.2))
     });
 }
 
