@@ -266,7 +266,7 @@ function sample(sampleSize) {
         mass: 0.000000000000001,
         slop: 0,
         collisionFilter: { group: 4, category: 6, mask: 8 },
-        render: { fillStyle: "#99a531a9", strokeStyle: "white", lineWidth: 1 }
+        render: { fillStyle: "#d3d8a9", strokeStyle: "black", lineWidth: 1 }
     });
     Composite.add(world, meanSquare);
 
@@ -319,7 +319,7 @@ function makeGround() {
         Bodies.rectangle(x0, populationHeight + sampleHeight * 0.5, width, sampleHeight - 10, {
             isStatic: true,
             isSensor: true,
-            render: { fillStyle: "#99a531", opacity: 0.3 },
+            render: { fillStyle: "#d3d8a9"},
             chamfer: { radius: [10, 10, 10, 10] }
         })
     );
@@ -344,7 +344,7 @@ function makeGround() {
         Bodies.rectangle(x0, height - samplingDistributionHeight * 0.5, width, samplingDistributionHeight, {
             isStatic: true,
             isSensor: true,
-            render: { fillStyle: "plum", opacity: 0.7 },
+            render: { fillStyle: "#d49fd4", opacity: 0.7 },
             chamfer: { radius: [10, 10, 10, 10] }
         })
     );
