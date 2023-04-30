@@ -16,11 +16,33 @@ let generationSpeed = 1;
 let nBalls = 600;
 let nBallsCreated = 0;
 
-let sampleSize = 10;
+let sampleSize = d3.select("#sampleSize").property("value");
 
 let balls = [];
 let currentMean;
 let means = [];
+
+
+let distributionFunction = d3.select("#dist").value
+console.log(distributionFunction)
+
+
+let populationMean = x0;
+let populationSd = width * 0.12;
+
+let y = d3.scaleLinear()
+    .domain([0, jStat.normal.pdf(x0, x0, 80 / Math.sqrt(sampleSize))])
+    .range([samplingDistributionHeight, 0])
+
+
+const sampleSizeInput = d3.select("#sampleSize")
+    .on("change", function() {
+        sampleSize = d3.select("#sampleSize").property("value");
+    })
+
+// ========================================================================== //
+// Physics
+// ========================================================================== //
 
 // physics properties
 let restitution = 0; // bounciness
@@ -30,15 +52,6 @@ let frictionStatic = Infinity;
 let slop = 0.01;
 let mass = 0.0000000001;
 let density = Infinity;
-
-let populationMean = x0;
-let populationSd = 80;
-
-let y = d3.scaleLinear()
-    .domain([0, jStat.normal.pdf(x0, x0, 80 / Math.sqrt(sampleSize))])
-    .range([samplingDistributionHeight, 0])
-
-let intervalId;
 
 
 var { Engine, Render, Runner,
@@ -106,33 +119,120 @@ function initialize() {
     });
 }
 
+// Make the world
+function makeGround() {
+    // background of population
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, populationHeight * 0.5, width, populationHeight, {
+            isStatic: true,
+            isSensor: true,
+            render: { fillStyle: "dodgerblue", opacity: 0.3 },
+            chamfer: { radius: [10, 10, 10, 10] }
+        })
+    );
+
+    // floor of population
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, populationHeight + 4, width, 10, {
+            isStatic: true,
+            density: Infinity,
+            collisionFilter: { group: 1, category: 1, mask: 0 },
+            render: {
+                fillStyle: "#000000",
+                visible: false
+            }
+        })
+    );
+
+    // background of sample
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, populationHeight + sampleHeight * 0.5, width, sampleHeight - 10, {
+            isStatic: true,
+            isSensor: true,
+            render: { fillStyle: "#d3d8a9"},
+            chamfer: { radius: [10, 10, 10, 10] }
+        })
+    );
+    // floor of sample
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, populationHeight + sampleHeight, width, 10, {
+            friction, frictionStatic,
+            density: Infinity, mass: Infinity,
+            isStatic: true,
+            collisionFilter: { group: 2, category: 4, mask: 2 },
+            render: {
+                fillStyle: "#000000",
+                visible: false
+            }
+        })
+    );
+
+    // background of sampling distribution
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, height - samplingDistributionHeight * 0.5, width, samplingDistributionHeight, {
+            isStatic: true,
+            isSensor: true,
+            render: { fillStyle: "#d49fd4", opacity: 0.7 },
+            chamfer: { radius: [10, 10, 10, 10] }
+        })
+    );
+
+    // floor of sampling distribution
+    Matter.Composite.add(
+        world,
+        Bodies.rectangle(x0, height + 9, width, 20, {
+            friction, frictionStatic,
+            isStatic: true,
+            collisionFilter: { group: 3, category: 8, mask: 6 },
+            render: {
+                fillStyle: "#000000",
+                visible: false
+            }
+        })
+    );
+}
+
+
+// Create a new circle with random properties
+function createCircle(x, y) {
+    nBallsCreated++;
+    var radius = ballRadius;
+    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
+        label: "circle",
+        restitution,
+        friction,
+        frictionAir,
+        frictionStatic,
+        slop,
+        mass,
+        density,
+        collisionFilter: { group: 1 },
+        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
+    });
+    Matter.World.add(world, circle);
+}
 
 
 
+let intervalId;
 
-
-function make_balls() {
+function makeBalls(distributionFunction) {
 
     let total = nBalls;
+
+    if (distributionFunction=="custom") {total = 0};
     clearInterval(intervalId);
 
     intervalId = setInterval(() => {
 
         if (total-- > 0) {
-            // let x = jStat.normal.sample(x0, width * 0.1);
 
-            // uniform
-            //let x = (width * 0.05) + width * 0.9 * Math.random();
-
-            // positive skew
-            // let x = width * 0.125 + Math.pow(Math.random(), 4) * width * 0.75;
-            //let x = randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
-
-            // negative skew
-            //let x = randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
-
-            // normal
-            let x = randomSkewNormal(Math.random, x0, width * 0.12, 0);
+            let x = distributionFunction();
 
             const circle = Bodies.circle(x, -20, size, {
                 label: "circle",
@@ -156,6 +256,42 @@ function make_balls() {
         }
     }, generationSpeed);
 }
+
+
+// Create a new circle with random properties
+function createCircle(x, y) {
+    nBallsCreated++;
+    var radius = ballRadius;
+    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
+        label: "circle",
+        restitution,
+        friction,
+        frictionAir,
+        frictionStatic,
+        slop,
+        mass,
+        density,
+        collisionFilter: { group: 1 },
+        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
+    });
+    Matter.World.add(world, circle);
+}
+
+// ========================================================================== //
+// Distribution functions
+function normal() {
+    return randomSkewNormal(Math.random, x0, width * 0.12, 0);
+}
+function negative() {
+    return randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
+}
+function positive() {
+    return randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
+}
+function uniform() {
+    return x = (width * 0.05) + width * 0.9 * Math.random();
+}
+// ========================================================================== //
 
 let existingBalls = () => {
     return world.bodies.filter((body) => (body.label === "circle" && !body.isStatic));
@@ -256,7 +392,7 @@ function sample(sampleSize) {
     currentMean = mean(arr);
     let binnedMean = Math.round(currentMean / (ballRadius * 2)) * (ballRadius * 2);
 
-    const meanSquare = Bodies.rectangle(binnedMean, populationHeight + sampleHeight, ballRadius * 2, ballRadius * 2, {
+    const meanSquare = Bodies.rectangle(binnedMean, populationHeight + sampleHeight - ballRadius * 2, ballRadius * 2, ballRadius * 2, {
         label: "mean",
         restitution: 0,
         friction,
@@ -286,103 +422,7 @@ function stopSamples() {
     clearInterval(sampleInterval);
 }
 
-function makeGround() {
 
-    // background of population
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, populationHeight * 0.5, width, populationHeight, {
-            isStatic: true,
-            isSensor: true,
-            render: { fillStyle: "dodgerblue", opacity: 0.3 },
-            chamfer: { radius: [10, 10, 10, 10] }
-        })
-    );
-
-    // floor of population
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, populationHeight + 4, width, 10, {
-            isStatic: true,
-            density: Infinity,
-            collisionFilter: { group: 1, category: 1, mask: 0 },
-            render: {
-                fillStyle: "#000000",
-                visible: false
-            }
-        })
-    );
-
-    // background of sample
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, populationHeight + sampleHeight * 0.5, width, sampleHeight - 10, {
-            isStatic: true,
-            isSensor: true,
-            render: { fillStyle: "#d3d8a9"},
-            chamfer: { radius: [10, 10, 10, 10] }
-        })
-    );
-    // floor of sample
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, populationHeight + sampleHeight, width, 10, {
-            friction, frictionStatic,
-            density: Infinity, mass: Infinity,
-            isStatic: true,
-            collisionFilter: { group: 2, category: 4, mask: 2 },
-            render: {
-                fillStyle: "#000000",
-                visible: false
-            }
-        })
-    );
-
-    // background of sampling distribution
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, height - samplingDistributionHeight * 0.5, width, samplingDistributionHeight, {
-            isStatic: true,
-            isSensor: true,
-            render: { fillStyle: "#d49fd4", opacity: 0.7 },
-            chamfer: { radius: [10, 10, 10, 10] }
-        })
-    );
-
-    // floor of sampling distribution
-    Matter.Composite.add(
-        world,
-        Bodies.rectangle(x0, height + 10, width, 20, {
-            friction, frictionStatic,
-            isStatic: true,
-            collisionFilter: { group: 3, category: 8, mask: 6 },
-            render: {
-                fillStyle: "#000000",
-                visible: false
-            }
-        })
-    );
-}
-
-
-// Create a new circle with random properties
-function createCircle(x, y) {
-    nBallsCreated++;
-    var radius = ballRadius;
-    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
-        label: "circle",
-        restitution,
-        friction,
-        frictionAir,
-        frictionStatic,
-        slop,
-        mass,
-        density,
-        collisionFilter: { group: 1 },
-        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
-    });
-    Matter.World.add(world, circle);
-}
 
 
 
@@ -459,6 +499,7 @@ function reset() {
 
     balls = [];
 
+    clearInterval(intervalId);
     Composite.clear(world);
     Engine.clear(engine);
     Render.stop(render);
@@ -471,17 +512,16 @@ function reset() {
 
     initialize();
     makeGround();
-    // make_balls();
+    makeBalls(eval(d3.select("#dist").node().value));
 }
 
 
-//
 
 initialize();
-makeGround();
-drawNormalDistribution();
-make_balls();
-
+// makeGround();
+// drawNormalDistribution();
+// makeBalls(eval(d3.select("#dist").node().value));
+reset();
 
 
 
@@ -595,7 +635,8 @@ function drawProportions(proportions) {
 
     Object.entries(proportions).forEach(([key, value]) => {
         curve.append("rect")
-            .attr("stroke", "white")
+            .attr("fill", "#d3d8a9")
+            .attr("stroke", "black")
             .attr("stroke-width", 0.5)
             .attr("x", key - ballRadius * 0.5)
             .attr("y", y(value * 0.2))
