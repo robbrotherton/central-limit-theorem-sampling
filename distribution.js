@@ -586,10 +586,14 @@ function drawProportions(proportions) {
             .attr("stroke", "black")
             .attr("stroke-width", 0.5)
             .attr("x", key - ballRadius * 0.5)
-            .attr("y", 0)
+            // .attr("y", 0)
+            .attr("y", y(value * 0.2))
             .attr("width", 5)
-            .attr("height", samplingDistributionHeight)
-            .transition().duration(value * 20000).attr("y", y(value * 0.2))
+            // .attr("height", samplingDistributionHeight * 2)
+            .attr("height", samplingDistributionHeight - y(value * 0.2))
+            // .transition().duration(value * 15000)
+            //     .attr("y", y(value * 0.2))
+            //     .attr("height", samplingDistributionHeight - y(value * 0.2))
     });
 }
 
