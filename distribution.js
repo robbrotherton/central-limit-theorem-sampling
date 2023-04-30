@@ -323,6 +323,7 @@ function updatePopulation() {
             ss += Math.pow(allBalls[i].position.x - populationMean, 2);
         }
         populationSd = Math.sqrt(ss / allBalls.length);
+        console.log(populationSd);
         drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
         clearInterval(updatePopulationInterval);
     }
@@ -369,9 +370,9 @@ const makeStaticMeanInterval = setInterval(() => {
     });
 }, 10);
 
+
 // ========================================================================== //
 //      Create and show samples
-
 function logBalls() {
     let s = sample(sampleSize);
     // console.log(balls);
