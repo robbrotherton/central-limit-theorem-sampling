@@ -110,10 +110,15 @@ function initialize() {
         creationIntervalId = setInterval(function () {
             createCircle(mouseX, mouseY);
         }, generationSpeed);
+
+        updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
     });
 
     // Stop generating balls when the mouse button is released
     render.canvas.addEventListener('mouseup', function (event) {
+        clearInterval(creationIntervalId);
+    });
+    render.canvas.addEventListener('mouseout', function (event) {
         clearInterval(creationIntervalId);
     });
 
@@ -147,7 +152,7 @@ function makeGround() {
     // background of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, populationHeight * 0.5, width, populationHeight, {
+        Bodies.rectangle(x0, populationHeight * 0.5, width * 2, populationHeight, {
             isStatic: true,
             isSensor: true,
             render: { fillStyle: "dodgerblue", opacity: 0.3 },
@@ -257,25 +262,25 @@ function makeBalls(distributionFunction) {
 
             let x = distributionFunction();
 
-            const circle = Bodies.circle(x, -20, size, {
-                label: "circle",
-                friction: 1,
-                frictionStatic: 1,
-                restitution: 0.1,
-                mass: 0.00000000000000001,
-                slop: 0.01,
-                density: Infinity,
-                frictionAir,
-                // sleepThreshold: Infinity,
-                collisionFilter: { group: 1 },
-                render: {
-                    fillStyle: d3.schemeCategory10[total % 10]
-                }
-            });
+            if ((x > 0) & (x < width)) {
 
-
-
-            Matter.Composite.add(world, circle);
+                const circle = Bodies.circle(x, -20, size, {
+                    label: "circle",
+                    friction: 1,
+                    frictionStatic: 1,
+                    restitution: 0.1,
+                    mass: 0.00000000000000001,
+                    slop: 0.01,
+                    density: Infinity,
+                    frictionAir,
+                    // sleepThreshold: Infinity,
+                    collisionFilter: { group: 1 },
+                    render: {
+                        fillStyle: d3.schemeCategory10[total % 10]
+                    }
+                });
+                Matter.Composite.add(world, circle);
+            }
         }
     }, generationSpeed);
 }
@@ -328,8 +333,10 @@ function checkStatic(body) {
     return body.isStatic;
 }
 
+let popChecks = 0;
 function updatePopulation() {
     console.log("checking pop");
+    popChecks++;
     let allBalls = world.bodies.filter((body) => (body.label === "circle"));
 
     // compute the population mean
@@ -347,7 +354,8 @@ function updatePopulation() {
     // console.log(populationSd);
     drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
 
-    if (allBalls.every(checkStatic)) {
+    if (allBalls.every(checkStatic) || popChecks > 1000) {
+        popChecks = 0;
         clearInterval(updatePopulationInterval);
     }
 }
@@ -480,6 +488,7 @@ function reset() {
 
     balls = [];
 
+    clearInterval(updatePopulationInterval);
     clearInterval(intervalId);
     histogram.selectAll("rect").remove();
     curve.selectAll("path").remove();
@@ -497,7 +506,7 @@ function reset() {
     initialize();
     makeGround();
     makeBalls(eval(d3.select("#dist").node().value));
-    updatePopulationInterval = setInterval(updatePopulation, 1000/60);
+    updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
 }
 
 
