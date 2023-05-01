@@ -7,7 +7,7 @@ function mean(arr) {
     return total / n;
 }
 
-function sd(arr) {
+function sd(arr, population = true) {
     let total = 0;
     let n = arr.length;
     for (let i = 0; i < n; i++) {
@@ -21,5 +21,9 @@ function sd(arr) {
         ss += Math.pow(arr[i] - mean, 2);
     }
 
-    return Math.sqrt(ss / arr.length);
+    let denominator = arr.length;
+
+    if (!population) { denominator--; }
+
+    return Math.sqrt(ss / denominator);
 }
