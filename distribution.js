@@ -287,6 +287,7 @@ function makePopulationDot(x, y, radius) {
     Events.on(dot, "sleepStart", function() {
         dot.isStatic = true;
         balls.push(dot);
+        updateDescriptives();
     });
 
     return dot;
@@ -428,6 +429,9 @@ function sample(sampleSize, fast = false) {
     };
 
     currentMean = mean(arr);
+    means.push(currentMean);
+    
+
     let binnedMean = Math.round(currentMean / (ballRadius * 2)) * (ballRadius * 2);
 
     const meanSquareBack = Bodies.rectangle(binnedMean, populationHeight + sampleHeight - ballRadius * 2, ballRadius * 2, ballRadius * 2, {
@@ -453,6 +457,8 @@ function sample(sampleSize, fast = false) {
     Composite.add(world, meanSquare);
 
     Composite.add(world, sampleCircles);
+
+    updateSamplingDistributionDescriptives();
 }
 
 let sampleInterval;
@@ -474,6 +480,7 @@ function stopSamples() {
 function reset() {
 
     balls = [];
+    means = [];
 
     clearInterval(updatePopulationInterval);
     clearInterval(intervalId);
@@ -503,18 +510,63 @@ function reset() {
 // Overlay and panel labels
 // ========================================================================== //
 
-
-// label the panels
+// ==================
+//      labels
 var labels = [{ label: "Population", top: 0 },
 { label: "Sample", top: populationHeight + 5 },
 { label: "Distribution of sample means", top: populationHeight + sampleHeight }];
 
 d3.select("#container").selectAll("span")
     .data(labels).enter().append("span")
-    .attr("class", "panel-label")
+    .classed("panel-label", true)
+    .classed("labels", true)
     .style("position", "absolute").style("left", "0.1em")
     .style("top", d => d.top + "px")
     .text(d => d.label)
+
+var labels2 = [{ label: `<i>N</i> = <span id="n">0</span><br>
+                         <i>μ</i> = <span id="mu"></span><br>
+                         <i>σ</i> = <span id="sigma"></span>`, 
+                top: 0 },
+    { label: `<i>n</i> = <span id="sampleN"></span><br>
+              <i>M</i> = <span id="sampleM"></span>
+              <i>SD</i> = <span id="sampleSd"></span>`, top: populationHeight + 5 },
+    { label: `<i>N<sub>m</sub></i> = <span id="Nm"></span><br>
+              <i>μ<sub>m</sub></i> = <span id="muM"></span><br>
+              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span>`, top: populationHeight + sampleHeight }];
+    
+const overlay2 = d3.select("#container").append("div")
+    .style("position", "absolute")
+    // .style("display", "flex")
+    .style("text-align", "right")
+
+overlay2.selectAll("span")
+    .data(labels2).enter().append("span")
+    .classed("panel-label", true)
+    .classed("numbers", true)
+    .style("top", d => d.top + "px")
+    .html(d => d.label)
+
+const f = d3.format(".1f");
+
+function updateDescriptives() {
+
+    d3.select("#n").text(balls.length)
+    d3.select("#mu").text(f(populationMean))
+    d3.select("#sigma").text(f(populationSd))
+}
+
+function updateSampleDescriptives(n, m, sd) {
+    d3.select("#sampleN").text(n)
+    d3.select("#sampleM").text(f(m))
+    d3.select("#sampleSd").text(f(sd));
+}
+
+function updateSamplingDistributionDescriptives() {
+    d3.select("#Nm").text(means.length)
+    d3.select("#muM").text(f(mean(means)))
+    d3.select("#sigmaM").text(f(sd(means)));
+}
 
 
 // drawing the normal distribution overlay
@@ -637,26 +689,6 @@ function sleep(milliseconds) {
     } while (currentDate - date < milliseconds);
 }
 
-function mean(arr) {
-    let total = 0;
-    let n = arr.length;
-    for (let i = 0; i < n; i++) {
-        total += arr[i];
-    }
-    return total / n;
-}
-
-function sd(arr) {
-    let mean = mean(arr);
-
-    let ss = 0;
-
-    for (let i = 0; i < arr.length; i++) {
-        ss += Math.pow(arr[i] - mean, 2);
-    }
-
-    return Math.sqrt(ss / arr.length);
-}
 
 function bin(x, binWidth) {
     return Math.round(x / binWidth) * binWidth;
