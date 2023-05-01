@@ -28,9 +28,16 @@ span.panel-label.labels {
     z-index: 13;
 }
 
+#overlay2 {
+    padding-right: 1em;
+    display: block;
+}
+
 span.panel-label.numbers {
-    width: 700px;
+    /* width: 700px; */
     position: absolute;
+    /* display: block; */
+    /* float: right; */
     /* padding-right: 1em; */
     /* color: red; */
     /* display: block; */

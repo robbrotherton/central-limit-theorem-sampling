@@ -11,7 +11,7 @@ let sampleHeight = 50;
 let samplingDistributionHeight = height - (populationHeight + sampleHeight);
 
 // ball properties
-const ballRadius = width * 0.007;
+const ballRadius = 5;
 let generationSpeed = 1;
 let nBalls = 500;
 let nBallsCreated = 0;
@@ -41,6 +41,10 @@ let y = d3.scaleLinear()
 const sampleSizeInput = d3.select("#sampleSize")
     .on("change", function () {
         sampleSize = d3.select("#sampleSize").property("value");
+    })
+const distributionInput = d3.select("#dist")
+    .on("change", function () {
+        reset();
     })
 
 // ========================================================================== //
@@ -341,7 +345,7 @@ function updatePopulation() {
     populationSd = Math.sqrt(ss / allBalls.length);
     // console.log(populationSd);
     drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
-
+    updateSamplingDistributionParams();
     if (allBalls.every(checkStatic) || popChecks > 1000) {
         popChecks = 0;
         clearInterval(updatePopulationInterval);
@@ -458,6 +462,7 @@ function sample(sampleSize, fast = false) {
 
     Composite.add(world, sampleCircles);
 
+    updateSampleDescriptives(sampleSize, f(currentMean), f(sd(arr, false)));
     updateSamplingDistributionDescriptives();
 }
 
@@ -529,19 +534,25 @@ var labels2 = [{ label: `<i>N</i> = <span id="n">0</span><br>
                          <i>σ</i> = <span id="sigma"></span>`, 
                 top: 0 },
     { label: `<i>n</i> = <span id="sampleN"></span><br>
-              <i>M</i> = <span id="sampleM"></span>
+              <i>M</i> = <span id="sampleM"></span>;
               <i>SD</i> = <span id="sampleSd"></span>`, top: populationHeight + 5 },
-    { label: `<i>N<sub>m</sub></i> = <span id="Nm"></span><br>
+    { label: `Predicted:<br>
               <i>μ<sub>m</sub></i> = <span id="muM"></span><br>
-              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span>`, top: populationHeight + sampleHeight }];
+              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span><br><br>
+              Observed:<br><i>N<sub>m</sub></i> = <span id="distN"></span><br>
+              <i>μ<sub>m</sub></i> = <span id="distM"></span><br>
+              <i>σ<sub>m</sub></i> = <span id="distSd"></span>`, top: populationHeight + sampleHeight }];
     
 const overlay2 = d3.select("#container").append("div")
     .style("position", "absolute")
     // .style("display", "flex")
     .style("text-align", "right")
+    // .style("width", "700px")
 
 overlay2.selectAll("span")
     .data(labels2).enter().append("span")
+    .style("width", width-5 + "px")
+    // .style("margin-right", "1em")
     .classed("panel-label", true)
     .classed("numbers", true)
     .style("top", d => d.top + "px")
@@ -561,11 +572,15 @@ function updateSampleDescriptives(n, m, sd) {
     d3.select("#sampleM").text(f(m))
     d3.select("#sampleSd").text(f(sd));
 }
+function updateSamplingDistributionParams() {
+    d3.select("#muM").text(f(populationMean))
+    d3.select("#sigmaM").text(f(populationSd / Math.sqrt(sampleSize)));
+}
 
 function updateSamplingDistributionDescriptives() {
-    d3.select("#Nm").text(means.length)
-    d3.select("#muM").text(f(mean(means)))
-    d3.select("#sigmaM").text(f(sd(means)));
+    d3.select("#distN").text(means.length)
+    d3.select("#distM").text(f(mean(means)))
+    d3.select("#distSd").text(f(sd(means)));
 }
 
 
