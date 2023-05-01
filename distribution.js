@@ -332,21 +332,22 @@ function updatePopulation() {
     console.log("checking pop");
     let allBalls = world.bodies.filter((body) => (body.label === "circle"));
 
-    if (allBalls.every(checkStatic)) {
-        // compute the population mean
-        let total = 0;
-        for (let i = 0; i < allBalls.length; i++) {
-            total += allBalls[i].position.x;
-        }
-        populationMean = total / allBalls.length;
+    // compute the population mean
+    let total = 0;
+    for (let i = 0; i < allBalls.length; i++) {
+        total += allBalls[i].position.x;
+    }
+    populationMean = total / allBalls.length;
 
-        let ss = 0;
-        for (let i = 0; i < allBalls.length; i++) {
-            ss += Math.pow(allBalls[i].position.x - populationMean, 2);
-        }
-        populationSd = Math.sqrt(ss / allBalls.length);
-        console.log(populationSd);
-        drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
+    let ss = 0;
+    for (let i = 0; i < allBalls.length; i++) {
+        ss += Math.pow(allBalls[i].position.x - populationMean, 2);
+    }
+    populationSd = Math.sqrt(ss / allBalls.length);
+    // console.log(populationSd);
+    drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
+
+    if (allBalls.every(checkStatic)) {
         clearInterval(updatePopulationInterval);
     }
 }
@@ -394,7 +395,7 @@ const makeStaticMeanInterval = setInterval(() => {
 
 
 // ========================================================================== //
-//      Create and show samples
+//      Sampling
 function logBalls() {
     let s = sample(sampleSize);
     // console.log(balls);
@@ -496,11 +497,8 @@ function reset() {
     initialize();
     makeGround();
     makeBalls(eval(d3.select("#dist").node().value));
-    updatePopulationInterval = setInterval(updatePopulation, 1000);
+    updatePopulationInterval = setInterval(updatePopulation, 1000/60);
 }
-
-
-
 
 
 
@@ -516,7 +514,8 @@ var labels = [{ label: "Population", top: 0 },
 { label: "Distribution of sample means", top: populationHeight + sampleHeight }];
 
 d3.select("#container").selectAll("span")
-    .data(labels).enter().append("span").attr("class", "panel-label")
+    .data(labels).enter().append("span")
+    .attr("class", "panel-label")
     .style("position", "absolute").style("left", "0.1em")
     .style("top", d => d.top + "px")
     .text(d => d.label)
@@ -571,6 +570,7 @@ function drawNormalDistribution(mean, sd) {
     curve.append("path")
         .attr("d", line(data))
         .attr("stroke", "grey")
+        .attr("stroke-dasharray", [5, 5])
         .attr("stroke-width", 2)
         .attr("fill", "none");
 }
@@ -578,6 +578,8 @@ function drawNormalDistribution(mean, sd) {
 // ========================================================================== //
 //      Histogram
 function drawProportions(proportions) {
+
+    Composite.remove(world, world.bodies.filter((body) => (body.label === "mean")));
     histogram.selectAll("rect").remove();
 
     Object.entries(proportions).forEach(([key, value]) => {
@@ -591,9 +593,9 @@ function drawProportions(proportions) {
             .attr("width", 5)
             // .attr("height", samplingDistributionHeight * 2)
             .attr("height", samplingDistributionHeight - y(value * 0.2))
-            // .transition().duration(value * 15000)
-            //     .attr("y", y(value * 0.2))
-            //     .attr("height", samplingDistributionHeight - y(value * 0.2))
+        // .transition().duration(value * 15000)
+        //     .attr("y", y(value * 0.2))
+        //     .attr("height", samplingDistributionHeight - y(value * 0.2))
     });
 }
 
@@ -706,10 +708,6 @@ function takeNSamples(nSamples) {
 
     let meanProportions = transformCountsToProportions(meanCounts, nSamples);
     drawProportions(meanProportions);
-
-    let curveMax = jStat.normal.pdf(populationMean, populationMean, populationSd / Math.sqrt(sampleSize));
-    console.log(curveMax);
-    console.log(meanProportions);
 }
 
 
