@@ -1,3 +1,25 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#options {
+    background-color: red;
+    position: relaabsolutetive;
+    display: contents;
+}
+
+#container {
+    /* background-color: lightblue; */
+    position: relative;
+    /* transform: scale(0.5); */
+    /* transform-origin: center center; */
+}
+
+
 .panel-label {
     font-family: Arial, Helvetica, sans-serif;
     font-size: 1.5em;

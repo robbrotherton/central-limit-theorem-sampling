@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canvas Painting, Centered and Scaled div</title>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #container {
+            background-color: lightblue;
+            padding: 20px;
+            transform: scale(1.5);
+            transform-origin: center center;
+        }
+
+        #container {
+            position: relative;
+            margin: auto;
+            transform: scale(0.5);
+        }
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="canvas" width="300" height="300"></canvas>
+    </div>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let painting = false;
+
+        const getRelativeMousePosition = (event, target) => {
+            const bounds = target.getBoundingClientRect();
+            const scaleX = target.width / bounds.width;
+            const scaleY = target.height / bounds.height;
+            return {
+                x: (event.clientX - bounds.left) * scaleX,
+                y: (event.clientY - bounds.top) * scaleY,
+            };
+        };
+
+        const startPosition = (event) => {
+            painting = true;
+            draw(event);
+        };
+
+        const finishPosition = () => {
+            painting = false;
+            ctx.beginPath();
+        };
+
+        const draw = (event) => {
+            if (!painting) return;
+            const pos = getRelativeMousePosition(event, canvas);
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        };
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', finishPosition);
+        canvas.addEventListener('mousemove', draw);
+    </script>
+</body>
+</html>

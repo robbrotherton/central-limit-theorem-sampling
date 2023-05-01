@@ -11,7 +11,7 @@ let sampleHeight = 50;
 let samplingDistributionHeight = height - (populationHeight + sampleHeight);
 
 // ball properties
-const ballRadius = size = 5;
+const ballRadius = width * 0.007;
 let generationSpeed = 1;
 let nBalls = 500;
 let nBallsCreated = 0;
@@ -53,9 +53,10 @@ let friction = Infinity;
 let frictionAir = 0.05;
 let frictionStatic = Infinity;
 let slop = 0;
-let mass = 0.00000000000000000000001;
-let density = Infinity;
+let mass = 0.1;
+let density = 100;
 
+showSleeping = false;
 
 var { Engine, Render, Runner,
     Composite, Composites, Common,
@@ -82,33 +83,34 @@ function initialize() {
             height: height,
             background: "#ffffff",
             wireframes: false,
-            showSleeping: false
+            showSleeping: showSleeping
         }
     });
     Render.run(render);
 
     // engine.gravity.y = 1;
     // engine.timing.timeScale = 1;
-    engine.positionIterations = 10;
-    engine.velocityIterations = 50;
+    engine.positionIterations = 8;
+    engine.velocityIterations = 10;
 
     // create runner
     runner = Runner.create();
     Runner.run(runner, engine);
-    // render.canvas.addEventListener("mousedown", reset);
     render.canvas.position = "absolute";
 
-    canvasPosition = getPosition(render.canvas);
+    // canvasPosition = getPosition(render.canvas);
 
-    var creationIntervalId;
+    var creationIntervalId, pos;
     // Add an event listener to the canvas to detect mouse clicks
     render.canvas.addEventListener('mousedown', function (event) {
         // Generate the first circle at the mouse location
-        createCircle(event.clientX - canvasPosition.x, event.clientY - canvasPosition.y);
+        pos = getRelativeMousePosition(event, render.canvas);
+        Composite.add(world, makePopulationDot(pos.x, pos.y, ballRadius));
+        // createCircle(pos.x, pos.y);
 
         // Generate balls at a constant rate and update their position if the mouse is moved
         creationIntervalId = setInterval(function () {
-            createCircle(mouseX, mouseY);
+            Composite.add(world, makePopulationDot(pos.x, pos.y, ballRadius));
         }, generationSpeed);
 
         updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
@@ -124,46 +126,59 @@ function initialize() {
 
     // Update the mouse position if it's moved
     render.canvas.addEventListener('mousemove', function (event) {
-        mouseX = event.clientX - canvasPosition.x;
-        mouseY = event.clientY - canvasPosition.y;
+        // mouseX = event.clientX - canvasPosition.x;
+        // mouseY = event.clientY - canvasPosition.y;
+        pos = getRelativeMousePosition(event, render.canvas)
     });
 }
 
 // Update the canvas position when the window is resized
-window.addEventListener('resize', function () {
-    canvasPosition = getPosition(render.canvas);
-});
+// window.addEventListener('resize', function () {
+//     canvasPosition = getPosition(render.canvas);
+// });
 
-function getPosition(element) {
-    var xPosition = 0;
-    var yPosition = 0;
+// function getPosition(element) {
+//     var xPosition = 0;
+//     var yPosition = 0;
 
-    while (element) {
-        xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
-        yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
-        element = element.offsetParent;
-    }
+//     while (element) {
+//         xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
+//         yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
+//         element = element.offsetParent;
+//     }
 
-    return { x: xPosition, y: yPosition };
-}
+//     return { x: xPosition, y: yPosition };
+// }
+
+const getRelativeMousePosition = (event, target) => {
+    const bounds = target.getBoundingClientRect();
+    const scaleX = target.width / bounds.width;
+    const scaleY = target.height / bounds.height;
+    return {
+        x: (event.clientX - bounds.left) * scaleX,
+        y: (event.clientY - bounds.top) * scaleY,
+    };
+};
+
+var panelRadius = [10, 10, 10, 10];
 
 // Make the world
 function makeGround() {
     // background of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, populationHeight * 0.5, width * 2, populationHeight, {
+        Bodies.rectangle(x0, populationHeight * 0.5, width, populationHeight, {
             isStatic: true,
             isSensor: true,
             render: { fillStyle: "dodgerblue", opacity: 0.3 },
-            chamfer: { radius: [10, 10, 10, 10] }
+            chamfer: { radius: panelRadius }
         })
     );
 
     // floor of population
     Matter.Composite.add(
         world,
-        Bodies.rectangle(x0, populationHeight + 4, width, 10, {
+        Bodies.rectangle(x0, populationHeight + 4, width * 2, 10, {
             isStatic: true,
             density: Infinity,
             collisionFilter: { group: 1, category: 1, mask: 0 },
@@ -181,7 +196,7 @@ function makeGround() {
             isStatic: true,
             isSensor: true,
             render: { fillStyle: "#d3d8a9" },
-            chamfer: { radius: [10, 10, 10, 10] }
+            chamfer: { radius: panelRadius }
         })
     );
     // floor of sample
@@ -206,7 +221,7 @@ function makeGround() {
             isStatic: true,
             isSensor: true,
             render: { fillStyle: "#d49fd4", opacity: 0.7 },
-            chamfer: { radius: [10, 10, 10, 10] }
+            chamfer: { radius: panelRadius }
         })
     );
 
@@ -226,71 +241,36 @@ function makeGround() {
 }
 
 
-// Create a new circle with random properties
-function createCircle(x, y) {
-    nBallsCreated++;
-    var radius = ballRadius;
-    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
-        label: "circle",
-        restitution,
-        friction,
-        frictionAir,
-        frictionStatic,
-        slop,
-        mass,
-        density,
-        collisionFilter: { group: 1 },
-        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
-    });
-    Matter.World.add(world, circle);
-}
-
 
 
 let intervalId;
 
-function makeBalls(distributionFunction) {
+function makePopulation(distributionFunction) {
 
+    clearInterval(intervalId);
+    // engine.positionIterations = 200;
+    // engine.velocityIterations = 300;
     let total = nBalls;
 
     if (distributionFunction == "custom") { total = 0 };
-    clearInterval(intervalId);
 
     intervalId = setInterval(() => {
 
         if (total-- > 0) {
 
             let x = distributionFunction();
+            let y = -500 + Math.random() * 500;
 
-            if ((x > 0) & (x < width)) {
+            let circle = makePopulationDot(x, y, ballRadius);
+            Matter.Composite.add(world, circle);
 
-                const circle = Bodies.circle(x, -20, size, {
-                    label: "circle",
-                    friction: 1,
-                    frictionStatic: 1,
-                    restitution: 0.1,
-                    mass: 0.00000000000000001,
-                    slop: 0.01,
-                    density: Infinity,
-                    frictionAir,
-                    // sleepThreshold: Infinity,
-                    collisionFilter: { group: 1 },
-                    render: {
-                        fillStyle: d3.schemeCategory10[total % 10]
-                    }
-                });
-                Matter.Composite.add(world, circle);
-            }
         }
     }, generationSpeed);
 }
 
 
-// Create a new circle with random properties
-function createCircle(x, y) {
-    nBallsCreated++;
-    var radius = ballRadius;
-    var circle = Matter.Bodies.circle(x + Math.random() * 10, y + Math.random() * 10, radius, {
+function makePopulationDot(x, y, radius) {
+    let dot = Matter.Bodies.circle(x, y, radius, {
         label: "circle",
         restitution,
         friction,
@@ -299,10 +279,17 @@ function createCircle(x, y) {
         slop,
         mass,
         density,
+        sleepThreshold: 15,
         collisionFilter: { group: 1 },
-        render: { fillStyle: d3.schemeCategory10[nBallsCreated % 10] }
+        render: { fillStyle: d3.schemeCategory10[Math.floor(Math.random() * 10)] }
     });
-    Matter.World.add(world, circle);
+
+    Events.on(dot, "sleepStart", function() {
+        dot.isStatic = true;
+        balls.push(dot);
+    });
+
+    return dot;
 }
 
 // ========================================================================== //
@@ -363,23 +350,23 @@ function updatePopulation() {
 
 // ========================================================================== //
 //      Freeze balls after creation
-const makeStaticInterval = setInterval(() => {
-    existingBalls().forEach(function (ball) {
-        let ballHeight = ball.position.y;
-        let ballSpeed = ball.speed;
-        let minHeight = 10; // height - (floorHeight + wallHeight);
-        //let minHeight = mouseY + 10;
-        if (ballHeight > minHeight && ballSpeed < 0.1) {
-            // ball.render.opacity = 0.5;
-            balls.push({ position: ball.position, fill: ball.render.fillStyle });
-            Body.setStatic(ball, true);
+// const makeStaticInterval = setInterval(() => {
+//     existingBalls().forEach(function (ball) {
+//         let ballHeight = ball.position.y;
+//         let ballSpeed = ball.speed;
+//         let minHeight = 0; // height - (floorHeight + wallHeight);
+//         //let minHeight = mouseY + 10;
+//         if (ballHeight > minHeight && ballSpeed < 0.01) {
+//             // ball.render.opacity = 0.5;
+//             balls.push({ position: ball.position, fill: ball.render.fillStyle });
+//             Body.setStatic(ball, true);
 
-            let newPopulationSum = populationMean * (balls.length - 1) + ball.position.x;
-            populationMean = newPopulationSum / balls.length;
-        }
+//             let newPopulationSum = populationMean * (balls.length - 1) + ball.position.x;
+//             populationMean = newPopulationSum / balls.length;
+//         }
 
-    });
-}, 1500);
+//     });
+// }, 100);
 
 let existingMeans = () => {
     return world.bodies.filter((body) => (body.label === "mean"));
@@ -436,7 +423,7 @@ function sample(sampleSize, fast = false) {
             density: 1, mass: 1, slop: 0.05,
             sleepThreshold: Infinity,
             collisionFilter: { group: -1, category: 2, mask: 4 },
-            render: { fillStyle: balls[index].fill }
+            render: { fillStyle: balls[index].render.fillStyle }
         }));
     };
 
@@ -505,7 +492,7 @@ function reset() {
 
     initialize();
     makeGround();
-    makeBalls(eval(d3.select("#dist").node().value));
+    makePopulation(eval(d3.select("#dist").node().value));
     updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
 }
 
