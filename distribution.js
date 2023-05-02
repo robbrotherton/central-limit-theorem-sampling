@@ -79,7 +79,7 @@ let frictionStatic = Infinity;
 // let density = 100;
 
 function scaleCanvas() {
-    var availableWidth = window.innerWidth;
+    var availableWidth = window.visualViewport.width;
 
     var scaleFactor = Math.min(1, availableWidth / 705);
     d3.select("#flex-container").style("transform", `scale(${scaleFactor})`);
@@ -91,8 +91,6 @@ window.addEventListener('resize', function () {
 });
 
 scaleCanvas();
-
-
 
 
 showSleeping = false;
@@ -107,6 +105,9 @@ let engine, render, runner, world;
 var pos, mouseX, mouseY;
 
 function initialize() {
+
+    scaleCanvas();
+
     // create engine
     engine = Engine.create({
         enableSleeping: true
