@@ -81,8 +81,17 @@ let frictionStatic = Infinity;
 function scaleCanvas() {
     var availableWidth = window.visualViewport.width;
 
-    var scaleFactor = Math.min(1, availableWidth / 705);
-    d3.select("#flex-container").style("transform", `scale(${scaleFactor})`);
+    var scaleFactor = Math.min(1, availableWidth / (width * 1.1));
+    d3.select("#container")
+        .style("transform", `scale(${scaleFactor})`)
+        // .style("width", `${width * scaleFactor}px`)
+        .style("height", `${height * scaleFactor}px`);
+
+    d3.select("#flex-container")
+        .style("width", `${width * scaleFactor}px`)
+
+    d3.select("#container")
+        .style("font-size", `${1/scaleFactor}em`)
 }
 
 // Update the canvas position when the window is resized
@@ -581,8 +590,8 @@ var labels2 = [{
 },
 {
     label: `<div id="samplingDistParams">Predicted:<br>
-              <i>μ<sub>m</sub></i> = <span id="muM"></span><br>
-              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span></div>
+              <i>μ<sub>m</sub></i> = <i>μ</i> = <span id="muM"></span><br>
+              <i>σ<sub>m</sub></i> = <i>σ</i>/√<i>n</i>  = <span id="sigmaM"></span></div>
               <div id="samplingDistStats">Observed:<br><i>N<sub>m</sub></i> = <span id="distN"></span><br>
               <i>μ<sub>m</sub></i> = <span id="distM"></span><br>
               <i>σ<sub>m</sub></i> = <span id="distSd"></span></div>`, top: populationHeight + sampleHeight
@@ -596,6 +605,7 @@ const overlay2 = d3.select("#container").append("div")
 overlay2.selectAll("span")
     .data(labels2).enter().append("span")
     .style("width", width - 5 + "px")
+    .style("z-index", 0)
     // .style("margin-right", "1em")
     .classed("panel-label", true)
     .classed("numbers", true)
@@ -638,7 +648,7 @@ const svg = d3.select("#container")
     .style("left", 0)
     .style("transform", `translateY(${height - samplingDistributionHeight}px)`)
     // .append("div")
-    .style("z-index", 11)
+    .style("z-index", 0)
     .attr("id", "samplingDistCanvas")
     // .style("left", 0)
     .attr("height", samplingDistributionHeight)
@@ -773,9 +783,9 @@ function transformCountsToProportions(counts, totalCount) {
     return proportions;
 }
 
-
+let meanCounts = {};
 function takeNSamples(nSamples) {
-    let meanCounts = {};
+    
 
     for (let i = 0; i < nSamples; i++) {
 
@@ -785,19 +795,32 @@ function takeNSamples(nSamples) {
             let index = Math.floor(Math.random() * balls.length);
             thisSample.push(balls[index].position.x);
         }
-        let thisSampleMean = bin(mean(thisSample), ballRadius);
+        
+        let thisSampleMean = mean(thisSample);
+        means.push(thisSampleMean);
 
-        if (meanCounts.hasOwnProperty(thisSampleMean)) {
-            meanCounts[thisSampleMean]++;
+        let thisSampleMeanBinned = bin(thisSampleMean, ballRadius);
+
+        if (meanCounts.hasOwnProperty(thisSampleMeanBinned)) {
+            meanCounts[thisSampleMeanBinned]++;
         } else {
-            meanCounts[thisSampleMean] = 1;
+            meanCounts[thisSampleMeanBinned] = 1;
         }
     }
 
-    let meanProportions = transformCountsToProportions(meanCounts, nSamples);
+    updateSamplingDistributionDescriptives();
+    let meanProportions = transformCountsToProportions(meanCounts, means.length);
     drawProportions(meanProportions);
 }
 
+function resetMeans() {
+    means = [];
+    meanCounts = {};
+    histogram.selectAll("rect").remove();
+    Composite.remove(world, world.bodies.filter((body) => (body.label === "mean" || body.label === "sample" || body.label === "meanGhost")));
+    d3.select("#samplingDistStats").classed("hide", true);
+    d3.select("#sampleStats").classed("hide", true);
+}
 
 
 

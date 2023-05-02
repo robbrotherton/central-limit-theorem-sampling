@@ -12,40 +12,39 @@
 </head>
 
 <body>
-    </div>
     <div id="flex-container">
-    <h1>The Central Limit Theorem</h1>
-    <div id="options" style="width: fit-content; margin: auto">
-        Distribution:
-        <select name="dist" id="dist">
-            <option value="normal">Normal</option>
-            <option value="positive">Positive skew</option>
-            <option value="negative">Negative skew</option>
-            <option value="uniform">Uniform</option>
-            <option value="custom">Custom</option>
-        </select>
-        Sample size:
-        <input id="sampleSize" style="width: 2em;" value="10">
-        <button onclick="reset()">Reset</button>
-    </div>
-    <div id="container">
-    </div>
-    <div id="controls" style="margin: auto; width: fit-content;">
-        <button onclick="logBalls()">Take a sample</button>
-        <button onclick="takeSamples()">Start</button>
-        <button onclick="stopSamples()">Stop</button>
-        <button onclick="takeNSamples(1000)">1,000</button>
-        <button onclick="takeNSamples(10000)">10,000</button>
-        <button onclick="takeNSamples(100000)">100,000</button>
+        <h1>The Central Limit Theorem</h1>
+        <div id="options" style="margin: auto; width: fit-content;">
+            Distribution:
+            <select name="dist" id="dist">
+                <option value="normal">Normal</option>
+                <option value="positive">Positive skew</option>
+                <option value="negative">Negative skew</option>
+                <option value="uniform">Uniform</option>
+                <option value="custom">Custom</option>
+            </select>
+            Sample size:
+            <input id="sampleSize" style="width: 2em;" value="10">
+            <button onclick="reset()">Reset</button>
+        </div>
 
-        <button onclick="updatePopulation()">redraw normal</button>
-        <!-- <div id="sampleDescriptives">
-        M = <span id="mean"></span>; SD = <span id="sd"></span>
-    </div> -->
-</div>
-<div>
-    Text description goes here.
-</div>
+        <div id="container"></div>
+
+        <div id="controls" style="margin: auto; width: fit-content;">
+            <button onclick="logBalls()">Take a sample</button>
+            <button onclick="takeSamples()">Start</button>
+            <button onclick="stopSamples()">Stop</button>
+            <button onclick="takeNSamples(1000)">1,000</button>
+            <button onclick="takeNSamples(10000)">10,000</button>
+            <button onclick="takeNSamples(100000)">100,000</button>
+
+            <button onclick="resetMeans()">clear</button>
+        </div>
+        
+        <div>
+            Text description goes here.
+        </div>
+    </div>
 </body>
 <script src="helpers.js"></script>
 <script src="distribution.js"></script>
