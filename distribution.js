@@ -78,6 +78,22 @@ let frictionStatic = Infinity;
 // let mass = 0.1;
 // let density = 100;
 
+function scaleCanvas() {
+    var availableWidth = window.innerWidth;
+
+    var scaleFactor = Math.min(1, availableWidth / 705);
+    d3.select("#flex-container").style("transform", `scale(${scaleFactor})`);
+}
+
+// Update the canvas position when the window is resized
+window.addEventListener('resize', function () {
+    scaleCanvas();
+});
+
+
+
+
+
 showSleeping = false;
 
 var { Engine, Render, Runner,
@@ -87,7 +103,7 @@ var { Engine, Render, Runner,
 
 let engine, render, runner, world;
 
-var mouseX, mouseY;
+var pos, mouseX, mouseY;
 
 function initialize() {
     // create engine
@@ -122,65 +138,77 @@ function initialize() {
 
     // canvasPosition = getPosition(render.canvas);
 
-    var creationIntervalId, pos;
-    // Add an event listener to the canvas to detect mouse clicks
-    render.canvas.addEventListener('mousedown', function (event) {
-        // Generate the first circle at the mouse location
-        pos = getRelativeMousePosition(event, render.canvas);
-        Composite.add(world, makePopulationDot(pos.x, pos.y, ballRadius));
-        // createCircle(pos.x, pos.y);
-
-        // Generate balls at a constant rate and update their position if the mouse is moved
+    var creationIntervalId;
+    
+    var isDrawing = false;
+    function startDrawing(x, y) {
+        isDrawing = true;
+        Composite.add(world, makePopulationDot(x, y, ballRadius));
         creationIntervalId = setInterval(function () {
+            // pos = getRelativeMousePosition(event, render.canvas);
             Composite.add(world, makePopulationDot(pos.x, pos.y, ballRadius));
         }, generationSpeed);
-
         updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
-    });
-
-    // Stop generating balls when the mouse button is released
-    render.canvas.addEventListener('mouseup', function (event) {
+    }
+    function stopDrawing() {
+        isDrawing = false;
         clearInterval(creationIntervalId);
-    });
-    render.canvas.addEventListener('mouseout', function (event) {
-        clearInterval(creationIntervalId);
-    });
+    }
 
+    // Add an event listener to the canvas to detect mouse clicks
+    render.canvas.addEventListener('mousedown', function (event) {
+        pos = getRelativeMousePosition(event, render.canvas);
+        startDrawing(pos.x, pos.y);
+    });
+    render.canvas.addEventListener('touchstart', function (event) {
+        pos = getRelativeMousePosition(event, render.canvas);
+        startDrawing(pos.x, pos.y);
+    });
     // Update the mouse position if it's moved
     render.canvas.addEventListener('mousemove', function (event) {
-        // mouseX = event.clientX - canvasPosition.x;
-        // mouseY = event.clientY - canvasPosition.y;
-        pos = getRelativeMousePosition(event, render.canvas)
+        pos = getRelativeMousePosition(event, render.canvas);
     });
+    render.canvas.addEventListener('touchmove', function (event) {
+        pos = getRelativeMousePosition(event, render.canvas);
+    });
+
+ 
+    // Stop generating balls when the mouse button is released
+    render.canvas.addEventListener('mouseup', function (event) {
+        if (isDrawing) {
+            stopDrawing();
+        }
+    });
+    render.canvas.addEventListener('mouseout', function (event) {
+        if (isDrawing) {
+            stopDrawing();
+        }
+    });
+    render.canvas.addEventListener('touchend', function (event) {
+        if (isDrawing) {
+            stopDrawing();
+        }
+    });
+
 }
+
 
 // Update the canvas position when the window is resized
 // window.addEventListener('resize', function () {
 //     canvasPosition = getPosition(render.canvas);
 // });
 
-// function getPosition(element) {
-//     var xPosition = 0;
-//     var yPosition = 0;
-
-//     while (element) {
-//         xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
-//         yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
-//         element = element.offsetParent;
-//     }
-
-//     return { x: xPosition, y: yPosition };
-// }
-
 const getRelativeMousePosition = (event, target) => {
     const bounds = target.getBoundingClientRect();
     const scaleX = target.width / bounds.width;
     const scaleY = target.height / bounds.height;
+    const clientX = event.clientX || event.touches[0].clientX;
+    const clientY = event.clientY || event.touches[0].clientY;
     return {
-        x: (event.clientX - bounds.left) * scaleX,
-        y: (event.clientY - bounds.top) * scaleY,
+      x: (clientX - bounds.left) * scaleX,
+      y: (clientY - bounds.top) * scaleY,
     };
-};
+  };
 
 var panelRadius = [10, 10, 10, 10];
 
@@ -294,7 +322,7 @@ function makePopulation(distributionFunction) {
 function makePopulationDot(x, y, radius) {
     let dot = Matter.Bodies.circle(x, y, radius, populationDotParams());
 
-    Events.on(dot, "sleepStart", function() {
+    Events.on(dot, "sleepStart", function () {
         dot.isStatic = true;
         balls.push(dot);
         updateDescriptives();
@@ -440,7 +468,7 @@ function sample(sampleSize, fast = false) {
 
     currentMean = mean(arr);
     means.push(currentMean);
-    
+
 
     let binnedMean = Math.round(currentMean / (ballRadius * 2)) * (ballRadius * 2);
 
@@ -497,7 +525,7 @@ function reset() {
     clearInterval(intervalId);
     histogram.selectAll("rect").remove();
     curve.selectAll("path").remove();
-    
+
     Composite.clear(world);
     Engine.clear(engine);
     Render.stop(render);
@@ -507,12 +535,12 @@ function reset() {
     render.context = null;
     render.textures = {};
     // console.log('reset clicked');
-    
+
     initialize();
     makeGround();
     makePopulation(eval(d3.select("#dist").node().value));
     updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
-    
+
     updateSampleDescriptives(0, 0, 0, hidden = true);
     updateSamplingDistributionDescriptives(hidden = true);
 }
@@ -538,20 +566,26 @@ d3.select("#container").selectAll("span")
     .style("top", d => d.top + "px")
     .text(d => d.label)
 
-var labels2 = [{ label: `<i>N</i> = <span id="n">0</span><br>
+var labels2 = [{
+    label: `<i>N</i> = <span id="n">0</span><br>
                          <i>μ</i> = <span id="mu"></span><br>
-                         <i>σ</i> = <span id="sigma"></span>`, 
-                top: 0 },
-    { label: `<div id="sampleStats"><i>n</i> = <span id="sampleN"></span>;
+                         <i>σ</i> = <span id="sigma"></span>`,
+    top: 0
+},
+{
+    label: `<div id="sampleStats"><i>n</i> = <span id="sampleN"></span>;
               <i>M</i> = <span id="sampleM"></span>;
-              <i>SD</i> = <span id="sampleSd"></span></div>`, top: populationHeight + 5 },
-    { label: `<div id="samplingDistParams">Predicted:<br>
+              <i>SD</i> = <span id="sampleSd"></span></div>`, top: populationHeight + 5
+},
+{
+    label: `<div id="samplingDistParams">Predicted:<br>
               <i>μ<sub>m</sub></i> = <span id="muM"></span><br>
               <i>σ<sub>m</sub></i> = <span id="sigmaM"></span></div>
               <div id="samplingDistStats">Observed:<br><i>N<sub>m</sub></i> = <span id="distN"></span><br>
               <i>μ<sub>m</sub></i> = <span id="distM"></span><br>
-              <i>σ<sub>m</sub></i> = <span id="distSd"></span></div>`, top: populationHeight + sampleHeight }];
-    
+              <i>σ<sub>m</sub></i> = <span id="distSd"></span></div>`, top: populationHeight + sampleHeight
+}];
+
 const overlay2 = d3.select("#container").append("div")
     .style("position", "absolute")
     .style("z-index", 13)
@@ -559,7 +593,7 @@ const overlay2 = d3.select("#container").append("div")
 
 overlay2.selectAll("span")
     .data(labels2).enter().append("span")
-    .style("width", width-5 + "px")
+    .style("width", width - 5 + "px")
     // .style("margin-right", "1em")
     .classed("panel-label", true)
     .classed("numbers", true)

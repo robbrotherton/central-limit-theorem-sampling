@@ -1,15 +1,24 @@
 body, html {
     height: 100%;
+    width: 100vw;
+    overflow-x: hidden;
     margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
+    /* padding-left: 1em;
+    padding-right: 2em;
+    margin-left: 1em;
+    margin-right: 0; */
 }
 
 #options {
-    background-color: red;
-    position: relaabsolutetive;
-    display: contents;
+     display: contents;
+}
+
+#flex-container {
+    padding-left: 5em;
+    padding-right: 5em;
 }
 
 #container {
