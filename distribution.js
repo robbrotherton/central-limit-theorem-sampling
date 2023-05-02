@@ -90,6 +90,7 @@ window.addEventListener('resize', function () {
     scaleCanvas();
 });
 
+scaleCanvas();
 
 
 
