@@ -3,7 +3,7 @@
 // https://onlinestatbook.com/stat_sim/sampling_dist/
 
 let width = 700;
-let height = 600;
+let height = 700;
 let x0 = x_start = width / 2;
 
 let populationHeight = height * 0.4;
@@ -81,7 +81,7 @@ let frictionStatic = Infinity;
 function scaleCanvas() {
     var availableWidth = window.visualViewport.width;
 
-    var scaleFactor = Math.min(1, availableWidth / (width * 1.1));
+    var scaleFactor = Math.min(1, availableWidth / (width * 1.02));
     d3.select("#container")
         .style("transform", `scale(${scaleFactor})`)
         // .style("width", `${width * scaleFactor}px`)
@@ -90,8 +90,8 @@ function scaleCanvas() {
     d3.select("#flex-container")
         .style("width", `${width * scaleFactor}px`)
 
-    d3.select("#container")
-        .style("font-size", `${1/scaleFactor}em`)
+    // d3.select("#container")
+    //     .style("font-size", `${1/scaleFactor * 0.7}em`)
 }
 
 // Update the canvas position when the window is resized
