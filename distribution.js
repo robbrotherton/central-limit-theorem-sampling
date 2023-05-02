@@ -52,13 +52,31 @@ const distributionInput = d3.select("#dist")
 // ========================================================================== //
 
 // physics properties
-let restitution = 0; // bounciness
+const populationDotParams = () => ({
+    label: "circle",
+    restitution: 0,
+    friction: Infinity,
+    frictionAir: 0.05,
+    frictionStatic: Infinity,
+    slop: 0,
+    mass: 0.1,
+    density: 100,
+    sleepThreshold: 15,
+    collisionFilter: { group: 1 },
+    render: { fillStyle: populationDotColor() }
+})
+
+function populationDotColor() {
+    return d3.schemeCategory10[Math.floor(Math.random() * 10)]
+}
+
+// let restitution = 0; // bounciness
 let friction = Infinity;
-let frictionAir = 0.05;
+// let frictionAir = 0.05;
 let frictionStatic = Infinity;
-let slop = 0;
-let mass = 0.1;
-let density = 100;
+// let slop = 0;
+// let mass = 0.1;
+// let density = 100;
 
 showSleeping = false;
 
@@ -94,8 +112,8 @@ function initialize() {
 
     // engine.gravity.y = 1;
     // engine.timing.timeScale = 1;
-    engine.positionIterations = 8;
-    engine.velocityIterations = 10;
+    engine.positionIterations = 6;
+    engine.velocityIterations = 8;
 
     // create runner
     runner = Runner.create();
@@ -274,19 +292,7 @@ function makePopulation(distributionFunction) {
 
 
 function makePopulationDot(x, y, radius) {
-    let dot = Matter.Bodies.circle(x, y, radius, {
-        label: "circle",
-        restitution,
-        friction,
-        frictionAir,
-        frictionStatic,
-        slop,
-        mass,
-        density,
-        sleepThreshold: 15,
-        collisionFilter: { group: 1 },
-        render: { fillStyle: d3.schemeCategory10[Math.floor(Math.random() * 10)] }
-    });
+    let dot = Matter.Bodies.circle(x, y, radius, populationDotParams());
 
     Events.on(dot, "sleepStart", function() {
         dot.isStatic = true;
@@ -462,7 +468,7 @@ function sample(sampleSize, fast = false) {
 
     Composite.add(world, sampleCircles);
 
-    updateSampleDescriptives(sampleSize, f(currentMean), f(sd(arr, false)));
+    updateSampleDescriptives(sampleSize, f(currentMean), f(sd(arr, false)), false);
     updateSamplingDistributionDescriptives();
 }
 
@@ -491,7 +497,7 @@ function reset() {
     clearInterval(intervalId);
     histogram.selectAll("rect").remove();
     curve.selectAll("path").remove();
-
+    
     Composite.clear(world);
     Engine.clear(engine);
     Render.stop(render);
@@ -501,11 +507,14 @@ function reset() {
     render.context = null;
     render.textures = {};
     // console.log('reset clicked');
-
+    
     initialize();
     makeGround();
     makePopulation(eval(d3.select("#dist").node().value));
     updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
+    
+    updateSampleDescriptives(0, 0, 0, hidden = true);
+    updateSamplingDistributionDescriptives(hidden = true);
 }
 
 
@@ -533,21 +542,20 @@ var labels2 = [{ label: `<i>N</i> = <span id="n">0</span><br>
                          <i>μ</i> = <span id="mu"></span><br>
                          <i>σ</i> = <span id="sigma"></span>`, 
                 top: 0 },
-    { label: `<i>n</i> = <span id="sampleN"></span><br>
+    { label: `<div id="sampleStats"><i>n</i> = <span id="sampleN"></span>;
               <i>M</i> = <span id="sampleM"></span>;
-              <i>SD</i> = <span id="sampleSd"></span>`, top: populationHeight + 5 },
-    { label: `Predicted:<br>
+              <i>SD</i> = <span id="sampleSd"></span></div>`, top: populationHeight + 5 },
+    { label: `<div id="samplingDistParams">Predicted:<br>
               <i>μ<sub>m</sub></i> = <span id="muM"></span><br>
-              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span><br><br>
-              Observed:<br><i>N<sub>m</sub></i> = <span id="distN"></span><br>
+              <i>σ<sub>m</sub></i> = <span id="sigmaM"></span></div>
+              <div id="samplingDistStats">Observed:<br><i>N<sub>m</sub></i> = <span id="distN"></span><br>
               <i>μ<sub>m</sub></i> = <span id="distM"></span><br>
-              <i>σ<sub>m</sub></i> = <span id="distSd"></span>`, top: populationHeight + sampleHeight }];
+              <i>σ<sub>m</sub></i> = <span id="distSd"></span></div>`, top: populationHeight + sampleHeight }];
     
 const overlay2 = d3.select("#container").append("div")
     .style("position", "absolute")
-    // .style("display", "flex")
+    .style("z-index", 13)
     .style("text-align", "right")
-    // .style("width", "700px")
 
 overlay2.selectAll("span")
     .data(labels2).enter().append("span")
@@ -561,13 +569,13 @@ overlay2.selectAll("span")
 const f = d3.format(".1f");
 
 function updateDescriptives() {
-
     d3.select("#n").text(balls.length)
     d3.select("#mu").text(f(populationMean))
     d3.select("#sigma").text(f(populationSd))
 }
 
-function updateSampleDescriptives(n, m, sd) {
+function updateSampleDescriptives(n, m, sd, hidden = true) {
+    d3.select("#sampleStats").classed("hide", hidden)
     d3.select("#sampleN").text(n)
     d3.select("#sampleM").text(f(m))
     d3.select("#sampleSd").text(f(sd));
@@ -577,9 +585,10 @@ function updateSamplingDistributionParams() {
     d3.select("#sigmaM").text(f(populationSd / Math.sqrt(sampleSize)));
 }
 
-function updateSamplingDistributionDescriptives() {
-    d3.select("#distN").text(means.length)
-    d3.select("#distM").text(f(mean(means)))
+function updateSamplingDistributionDescriptives(hidden = false) {
+    d3.select("#samplingDistStats").classed("hide", hidden)
+    d3.select("#distN").text(means.length);
+    d3.select("#distM").text(f(mean(means)));
     d3.select("#distSd").text(f(sd(means)));
 }
 

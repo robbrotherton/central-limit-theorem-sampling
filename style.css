@@ -45,3 +45,11 @@ span.panel-label.numbers {
     /* float: right; */
     /* margin-right: 1em; */
 }
+
+#samplingDistParams {
+    margin-bottom: 0.5em;
+}
+
+.hide {
+    display:none;
+}
