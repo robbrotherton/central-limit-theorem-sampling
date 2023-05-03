@@ -4,7 +4,7 @@
 
 let width = 700;
 let height = 700;
-let x0 = x_start = width / 2;
+let x0 = width / 2;
 
 let populationHeight = height * 0.4;
 let sampleHeight = 50;
@@ -14,57 +14,84 @@ let samplingDistributionHeight = height - (populationHeight + sampleHeight);
 const ballRadius = 5;
 let generationSpeed = 1;
 let nBalls = 500;
-let nBallsCreated = 0;
 
 let sampleSize = d3.select("#sampleSize").property("value");
-
-let balls = [];
-let currentMean;
-let means = [];
-
-
 let distributionFunction = d3.select("#dist").value
-console.log(distributionFunction)
+
+let balls = [], means = [], currentMean;
 
 
 let populationMean = x0;
 let populationSd = width * 0.12;
 let updatePopulationInterval;
-
-var canvasPosition;
+let creationIntervalId;
 
 let y = d3.scaleLinear()
     .domain([0, jStat.normal.pdf(x0, x0, 80 / Math.sqrt(sampleSize))])
     .range([samplingDistributionHeight, 0])
 
 
+
+    
+// ========================================================================== //
+// Buttons and listeners
+// ========================================================================== //
+
 const sampleSizeInput = d3.select("#sampleSize")
     .on("change", function () {
+        resetMeans();
         sampleSize = d3.select("#sampleSize").property("value");
-    })
+        updateSamplingDistributionParams();
+        updateSamplingDistributionDescriptives(true);
+        updateSampleDescriptives();
+        drawNormalDistribution(populationMean, populationSd / Math.sqrt(sampleSize));
+    });
+
 const distributionInput = d3.select("#dist")
     .on("change", function () {
         reset();
-    })
+    });
+
+function scaleCanvas() {
+    var availableWidth = window.visualViewport.width;
+
+    var scaleFactor = Math.min(1, availableWidth / (width * 1.02));
+    d3.select("#container")
+        .style("transform", `scale(${scaleFactor})`)
+        // .style("width", `${width * scaleFactor}px`)
+        .style("height", `${height * scaleFactor}px`);
+
+    d3.select("#flex-container")
+        .style("width", `${Math.ceil(width * scaleFactor)}px`)
+
+    // d3.select("#container")
+    //     .style("font-size", `${1/scaleFactor}em`)
+}
+
+// Update the canvas position when the window is resized
+window.addEventListener('resize', function () {
+    scaleCanvas();
+});
+
+
 
 // ========================================================================== //
 // Physics
 // ========================================================================== //
 
 // physics properties
-const populationDotParams = () => ({
+const populationDotParams = {
     label: "circle",
     restitution: 0,
-    friction: Infinity,
-    frictionAir: 0.05,
-    frictionStatic: Infinity,
+    friction: 0.1,
+    frictionAir: 0.045,
+    frictionStatic: 1,
     slop: 0,
     mass: 0.1,
     density: 100,
     sleepThreshold: 15,
-    collisionFilter: { group: 1 },
-    render: { fillStyle: populationDotColor() }
-})
+    collisionFilter: { group: 1 }
+}
 
 function populationDotColor() {
     return d3.schemeCategory10[Math.floor(Math.random() * 10)]
@@ -78,28 +105,7 @@ let frictionStatic = Infinity;
 // let mass = 0.1;
 // let density = 100;
 
-function scaleCanvas() {
-    var availableWidth = window.visualViewport.width;
 
-    var scaleFactor = Math.min(1, availableWidth / (width * 1.02));
-    d3.select("#container")
-        .style("transform", `scale(${scaleFactor})`)
-        // .style("width", `${width * scaleFactor}px`)
-        .style("height", `${height * scaleFactor}px`);
-
-    d3.select("#flex-container")
-        .style("width", `${width * scaleFactor}px`)
-
-    // d3.select("#container")
-    //     .style("font-size", `${1/scaleFactor * 0.7}em`)
-}
-
-// Update the canvas position when the window is resized
-window.addEventListener('resize', function () {
-    scaleCanvas();
-});
-
-scaleCanvas();
 
 
 showSleeping = false;
@@ -115,8 +121,6 @@ var pos, mouseX, mouseY;
 
 function initialize() {
 
-    scaleCanvas();
-
     // create engine
     engine = Engine.create({
         enableSleeping: true
@@ -130,7 +134,7 @@ function initialize() {
         options: {
             width: width,
             height: height,
-            background: "#ffffff",
+            background: "transparent",
             wireframes: false,
             showSleeping: showSleeping
         }
@@ -147,16 +151,20 @@ function initialize() {
     Runner.run(runner, engine);
     render.canvas.position = "absolute";
 
-    // canvasPosition = getPosition(render.canvas);
+    drawDots();
+}
 
-    var creationIntervalId;
-    
+function drawDots() {
     var isDrawing = false;
     function startDrawing(x, y) {
         isDrawing = true;
+        resetMeans();
         Composite.add(world, makePopulationDot(x, y, ballRadius));
         creationIntervalId = setInterval(function () {
-            // pos = getRelativeMousePosition(event, render.canvas);
+            if (pos.y > (populationHeight - 5)) {
+                stopDrawing;
+                return null;
+            }
             Composite.add(world, makePopulationDot(pos.x, pos.y, ballRadius));
         }, generationSpeed);
         updatePopulationInterval = setInterval(updatePopulation, 1000 / 60);
@@ -169,11 +177,11 @@ function initialize() {
     // Add an event listener to the canvas to detect mouse clicks
     render.canvas.addEventListener('mousedown', function (event) {
         pos = getRelativeMousePosition(event, render.canvas);
-        startDrawing(pos.x, pos.y);
+        if (pos.y < (populationHeight - 5)) startDrawing(pos.x, pos.y);
     });
     render.canvas.addEventListener('touchstart', function (event) {
         pos = getRelativeMousePosition(event, render.canvas);
-        startDrawing(pos.x, pos.y);
+        if (pos.y < (populationHeight - 5)) startDrawing(pos.x, pos.y);
     });
     // Update the mouse position if it's moved
     render.canvas.addEventListener('mousemove', function (event) {
@@ -183,7 +191,7 @@ function initialize() {
         pos = getRelativeMousePosition(event, render.canvas);
     });
 
- 
+
     // Stop generating balls when the mouse button is released
     render.canvas.addEventListener('mouseup', function (event) {
         if (isDrawing) {
@@ -200,14 +208,7 @@ function initialize() {
             stopDrawing();
         }
     });
-
 }
-
-
-// Update the canvas position when the window is resized
-// window.addEventListener('resize', function () {
-//     canvasPosition = getPosition(render.canvas);
-// });
 
 const getRelativeMousePosition = (event, target) => {
     const bounds = target.getBoundingClientRect();
@@ -216,14 +217,14 @@ const getRelativeMousePosition = (event, target) => {
     const clientX = event.clientX || event.touches[0].clientX;
     const clientY = event.clientY || event.touches[0].clientY;
     return {
-      x: (clientX - bounds.left) * scaleX,
-      y: (clientY - bounds.top) * scaleY,
+        x: (clientX - bounds.left) * scaleX,
+        y: (clientY - bounds.top) * scaleY,
     };
-  };
+};
 
+// ========================================================================== //
+//      Make the world
 var panelRadius = [10, 10, 10, 10];
-
-// Make the world
 function makeGround() {
     // background of population
     Matter.Composite.add(
@@ -303,14 +304,14 @@ function makeGround() {
 
 
 
+// ========================================================================== //
+//      Generate population
 
 let intervalId;
 
 function makePopulation(distributionFunction) {
 
     clearInterval(intervalId);
-    // engine.positionIterations = 200;
-    // engine.velocityIterations = 300;
     let total = nBalls;
 
     if (distributionFunction == "custom") { total = 0 };
@@ -331,8 +332,10 @@ function makePopulation(distributionFunction) {
 
 
 function makePopulationDot(x, y, radius) {
-    let dot = Matter.Bodies.circle(x, y, radius, populationDotParams());
-
+    
+    let dot = Matter.Bodies.circle(x, y, radius, populationDotParams);
+    dot.render.fillStyle = populationDotColor();
+    
     Events.on(dot, "sleepStart", function () {
         dot.isStatic = true;
         balls.push(dot);
@@ -340,21 +343,6 @@ function makePopulationDot(x, y, radius) {
     });
 
     return dot;
-}
-
-// ========================================================================== //
-//      Distribution functions
-function normal() {
-    return randomSkewNormal(Math.random, x0, width * 0.12, 0);
-}
-function negative() {
-    return randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
-}
-function positive() {
-    return randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
-}
-function uniform() {
-    return x = (width * 0.05) + width * 0.9 * Math.random();
 }
 
 
@@ -397,27 +385,6 @@ function updatePopulation() {
     }
 }
 
-
-// ========================================================================== //
-//      Freeze balls after creation
-// const makeStaticInterval = setInterval(() => {
-//     existingBalls().forEach(function (ball) {
-//         let ballHeight = ball.position.y;
-//         let ballSpeed = ball.speed;
-//         let minHeight = 0; // height - (floorHeight + wallHeight);
-//         //let minHeight = mouseY + 10;
-//         if (ballHeight > minHeight && ballSpeed < 0.01) {
-//             // ball.render.opacity = 0.5;
-//             balls.push({ position: ball.position, fill: ball.render.fillStyle });
-//             Body.setStatic(ball, true);
-
-//             let newPopulationSum = populationMean * (balls.length - 1) + ball.position.x;
-//             populationMean = newPopulationSum / balls.length;
-//         }
-
-//     });
-// }, 100);
-
 let existingMeans = () => {
     return world.bodies.filter((body) => (body.label === "mean"));
 };
@@ -440,7 +407,7 @@ const makeStaticMeanInterval = setInterval(() => {
 
 
 // ========================================================================== //
-//      Sampling
+// Sampling
 function logBalls() {
     let s = sample(sampleSize);
     // console.log(balls);
@@ -450,6 +417,8 @@ function logBalls() {
 }
 
 
+// ========================================================================== //
+//      Single sample
 
 function sample(sampleSize, fast = false) {
     let arr = [];
@@ -526,6 +495,39 @@ function stopSamples() {
 
 
 // ========================================================================== //
+//      Multiple samples
+let meanCounts = {};
+function takeNSamples(nSamples) {
+
+
+    for (let i = 0; i < nSamples; i++) {
+
+        let thisSample = [];
+
+        for (let j = 0; j < sampleSize; j++) {
+            let index = Math.floor(Math.random() * balls.length);
+            thisSample.push(balls[index].position.x);
+        }
+
+        let thisSampleMean = mean(thisSample);
+        means.push(thisSampleMean);
+
+        let thisSampleMeanBinned = bin(thisSampleMean, ballRadius);
+
+        if (meanCounts.hasOwnProperty(thisSampleMeanBinned)) {
+            meanCounts[thisSampleMeanBinned]++;
+        } else {
+            meanCounts[thisSampleMeanBinned] = 1;
+        }
+    }
+
+    updateSamplingDistributionDescriptives();
+    let meanProportions = transformCountsToProportions(meanCounts, means.length);
+    drawProportions(meanProportions);
+}
+
+
+// ========================================================================== //
 //      Reset
 function reset() {
 
@@ -557,6 +559,16 @@ function reset() {
 }
 
 
+function resetMeans() {
+    means = [];
+    meanCounts = {};
+    histogram.selectAll("rect").remove();
+    Composite.remove(world, world.bodies.filter((body) => (body.label === "mean" || body.label === "sample" || body.label === "meanGhost")));
+    d3.select("#samplingDistStats").classed("hide", true);
+    d3.select("#sampleStats").classed("hide", true);
+}
+
+
 
 
 // ========================================================================== //
@@ -564,7 +576,7 @@ function reset() {
 // ========================================================================== //
 
 // ==================
-//      labels
+//      Labels
 var labels = [{ label: "Population", top: 0 },
 { label: "Sample", top: populationHeight + 5 },
 { label: "Distribution of sample means", top: populationHeight + sampleHeight }];
@@ -613,9 +625,10 @@ overlay2.selectAll("span")
     .html(d => d.label)
 
 const f = d3.format(".1f");
+const fComma = d3.format(",");
 
 function updateDescriptives() {
-    d3.select("#n").text(balls.length)
+    d3.select("#n").text(fComma(balls.length))
     d3.select("#mu").text(f(populationMean))
     d3.select("#sigma").text(f(populationSd))
 }
@@ -633,13 +646,15 @@ function updateSamplingDistributionParams() {
 
 function updateSamplingDistributionDescriptives(hidden = false) {
     d3.select("#samplingDistStats").classed("hide", hidden)
-    d3.select("#distN").text(means.length);
+    d3.select("#distN").text(fComma(means.length));
     d3.select("#distM").text(f(mean(means)));
     d3.select("#distSd").text(f(sd(means)));
 }
 
 
-// drawing the normal distribution overlay
+
+// ========================================================================== //
+//      Normal distribution
 
 // create svg overlay
 const svg = d3.select("#container")
@@ -657,8 +672,7 @@ const svg = d3.select("#container")
 const histogram = svg.append("g");
 const curve = svg.append("g");
 
-// ========================================================================== //
-//      Normal distribution
+
 function drawNormalDistribution(mean, sd) {
 
     // remove the old path
@@ -675,10 +689,6 @@ function drawNormalDistribution(mean, sd) {
         let density = jStat.normal.pdf(value, mean, sd);
         data.push({ value: value, density: density });
     }
-
-    // let yMax = jStat.normal.pdf(mean, mean, sd);
-    // let yMultiplier = 0.9 * samplingDistributionHeight / yMax;
-    // let yMultiplier = 10000;
 
     const line = d3.line()
         .x(d => d.value)
@@ -725,6 +735,9 @@ function drawProportions(proportions) {
 // ========================================================================== //
 
 
+// ========================================================================== //
+//      Distribution functions
+
 // functions to make skewed distribution
 // see https://spin.atomicobject.com/2019/09/30/skew-normal-prng-javascript/
 const randomNormals = (rng) => {
@@ -749,7 +762,22 @@ const randomSkewNormal = (rng, ξ = 0, ω = 1, α = 0) => {
     return ξ + ω * z;
 };
 
-// other low-level helper functions
+// functions to generate single observations from those distributions
+function normal() {
+    return randomSkewNormal(Math.random, x0, width * 0.12, 0);
+}
+function negative() {
+    return randomSkewNormal(Math.random, width * 0.9, width * 0.25, -10);
+}
+function positive() {
+    return randomSkewNormal(Math.random, width * 0.1, width * 0.25, 10);
+}
+function uniform() {
+    return x = (width * 0.05) + width * 0.9 * Math.random();
+}
+
+// ============================================================
+//      Other low-level helper functions
 
 function sleep(milliseconds) {
     const date = Date.now();
@@ -783,47 +811,8 @@ function transformCountsToProportions(counts, totalCount) {
     return proportions;
 }
 
-let meanCounts = {};
-function takeNSamples(nSamples) {
-    
-
-    for (let i = 0; i < nSamples; i++) {
-
-        let thisSample = [];
-
-        for (let j = 0; j < sampleSize; j++) {
-            let index = Math.floor(Math.random() * balls.length);
-            thisSample.push(balls[index].position.x);
-        }
-        
-        let thisSampleMean = mean(thisSample);
-        means.push(thisSampleMean);
-
-        let thisSampleMeanBinned = bin(thisSampleMean, ballRadius);
-
-        if (meanCounts.hasOwnProperty(thisSampleMeanBinned)) {
-            meanCounts[thisSampleMeanBinned]++;
-        } else {
-            meanCounts[thisSampleMeanBinned] = 1;
-        }
-    }
-
-    updateSamplingDistributionDescriptives();
-    let meanProportions = transformCountsToProportions(meanCounts, means.length);
-    drawProportions(meanProportions);
-}
-
-function resetMeans() {
-    means = [];
-    meanCounts = {};
-    histogram.selectAll("rect").remove();
-    Composite.remove(world, world.bodies.filter((body) => (body.label === "mean" || body.label === "sample" || body.label === "meanGhost")));
-    d3.select("#samplingDistStats").classed("hide", true);
-    d3.select("#sampleStats").classed("hide", true);
-}
 
 
-
-
+scaleCanvas();
 initialize();
 reset();
